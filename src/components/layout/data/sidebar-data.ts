@@ -22,7 +22,7 @@ export const sidebarData: SidebarData = {
         {
           title: 'Dashboard Inicial',
           icon: IconDashboard,
-          url: '/',
+          url: '/dashboard_inicial',
         },
       ],
     },
