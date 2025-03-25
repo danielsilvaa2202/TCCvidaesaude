@@ -31,12 +31,6 @@ const authSignIn2LazyImport = createFileRoute('/(auth)/sign-in-2')()
 const authForgotPasswordLazyImport = createFileRoute(
   '/(auth)/forgot-password',
 )()
-const AuthenticatedTasksIndexLazyImport = createFileRoute(
-  '/_authenticated/tasks/',
-)()
-const AuthenticatedReinfprocessamentoIndexLazyImport = createFileRoute(
-  '/_authenticated/reinf_processamento/',
-)()
 const AuthenticatedProfissionaisIndexLazyImport = createFileRoute(
   '/_authenticated/profissionais/',
 )()
@@ -45,9 +39,6 @@ const AuthenticatedPacientesIndexLazyImport = createFileRoute(
 )()
 const AuthenticatedLivrofiscalIndexLazyImport = createFileRoute(
   '/_authenticated/livro_fiscal/',
-)()
-const AuthenticatedImportacaoIndexLazyImport = createFileRoute(
-  '/_authenticated/importacao/',
 )()
 const AuthenticatedHelpCenterIndexLazyImport = createFileRoute(
   '/_authenticated/help-center/',
@@ -162,26 +153,6 @@ const auth500Route = auth500Import.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const AuthenticatedTasksIndexLazyRoute =
-  AuthenticatedTasksIndexLazyImport.update({
-    id: '/tasks/',
-    path: '/tasks/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/tasks/index.lazy').then((d) => d.Route),
-  )
-
-const AuthenticatedReinfprocessamentoIndexLazyRoute =
-  AuthenticatedReinfprocessamentoIndexLazyImport.update({
-    id: '/reinf_processamento/',
-    path: '/reinf_processamento/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/reinf_processamento/index.lazy').then(
-      (d) => d.Route,
-    ),
-  )
-
 const AuthenticatedProfissionaisIndexLazyRoute =
   AuthenticatedProfissionaisIndexLazyImport.update({
     id: '/profissionais/',
@@ -209,17 +180,6 @@ const AuthenticatedLivrofiscalIndexLazyRoute =
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any).lazy(() =>
     import('./routes/_authenticated/livro_fiscal/index.lazy').then(
-      (d) => d.Route,
-    ),
-  )
-
-const AuthenticatedImportacaoIndexLazyRoute =
-  AuthenticatedImportacaoIndexLazyImport.update({
-    id: '/importacao/',
-    path: '/importacao/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/importacao/index.lazy').then(
       (d) => d.Route,
     ),
   )
@@ -407,13 +367,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexLazyImport
       parentRoute: typeof AuthenticatedRouteImport
     }
-    '/_authenticated/importacao/': {
-      id: '/_authenticated/importacao/'
-      path: '/importacao'
-      fullPath: '/importacao'
-      preLoaderRoute: typeof AuthenticatedImportacaoIndexLazyImport
-      parentRoute: typeof AuthenticatedRouteImport
-    }
     '/_authenticated/livro_fiscal/': {
       id: '/_authenticated/livro_fiscal/'
       path: '/livro_fiscal'
@@ -435,20 +388,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfissionaisIndexLazyImport
       parentRoute: typeof AuthenticatedRouteImport
     }
-    '/_authenticated/reinf_processamento/': {
-      id: '/_authenticated/reinf_processamento/'
-      path: '/reinf_processamento'
-      fullPath: '/reinf_processamento'
-      preLoaderRoute: typeof AuthenticatedReinfprocessamentoIndexLazyImport
-      parentRoute: typeof AuthenticatedRouteImport
-    }
-    '/_authenticated/tasks/': {
-      id: '/_authenticated/tasks/'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof AuthenticatedTasksIndexLazyImport
-      parentRoute: typeof AuthenticatedRouteImport
-    }
   }
 }
 
@@ -461,12 +400,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConsultasmedicoIndexLazyRoute: typeof AuthenticatedConsultasmedicoIndexLazyRoute
   AuthenticatedDashboardinicialIndexLazyRoute: typeof AuthenticatedDashboardinicialIndexLazyRoute
   AuthenticatedHelpCenterIndexLazyRoute: typeof AuthenticatedHelpCenterIndexLazyRoute
-  AuthenticatedImportacaoIndexLazyRoute: typeof AuthenticatedImportacaoIndexLazyRoute
   AuthenticatedLivrofiscalIndexLazyRoute: typeof AuthenticatedLivrofiscalIndexLazyRoute
   AuthenticatedPacientesIndexLazyRoute: typeof AuthenticatedPacientesIndexLazyRoute
   AuthenticatedProfissionaisIndexLazyRoute: typeof AuthenticatedProfissionaisIndexLazyRoute
-  AuthenticatedReinfprocessamentoIndexLazyRoute: typeof AuthenticatedReinfprocessamentoIndexLazyRoute
-  AuthenticatedTasksIndexLazyRoute: typeof AuthenticatedTasksIndexLazyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -479,15 +415,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardinicialIndexLazyRoute:
     AuthenticatedDashboardinicialIndexLazyRoute,
   AuthenticatedHelpCenterIndexLazyRoute: AuthenticatedHelpCenterIndexLazyRoute,
-  AuthenticatedImportacaoIndexLazyRoute: AuthenticatedImportacaoIndexLazyRoute,
   AuthenticatedLivrofiscalIndexLazyRoute:
     AuthenticatedLivrofiscalIndexLazyRoute,
   AuthenticatedPacientesIndexLazyRoute: AuthenticatedPacientesIndexLazyRoute,
   AuthenticatedProfissionaisIndexLazyRoute:
     AuthenticatedProfissionaisIndexLazyRoute,
-  AuthenticatedReinfprocessamentoIndexLazyRoute:
-    AuthenticatedReinfprocessamentoIndexLazyRoute,
-  AuthenticatedTasksIndexLazyRoute: AuthenticatedTasksIndexLazyRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -511,12 +443,9 @@ export interface FileRoutesByFullPath {
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/importacao': typeof AuthenticatedImportacaoIndexLazyRoute
   '/livro_fiscal': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/pacientes': typeof AuthenticatedPacientesIndexLazyRoute
   '/profissionais': typeof AuthenticatedProfissionaisIndexLazyRoute
-  '/reinf_processamento': typeof AuthenticatedReinfprocessamentoIndexLazyRoute
-  '/tasks': typeof AuthenticatedTasksIndexLazyRoute
 }
 
 export interface FileRoutesByTo {
@@ -536,12 +465,9 @@ export interface FileRoutesByTo {
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/importacao': typeof AuthenticatedImportacaoIndexLazyRoute
   '/livro_fiscal': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/pacientes': typeof AuthenticatedPacientesIndexLazyRoute
   '/profissionais': typeof AuthenticatedProfissionaisIndexLazyRoute
-  '/reinf_processamento': typeof AuthenticatedReinfprocessamentoIndexLazyRoute
-  '/tasks': typeof AuthenticatedTasksIndexLazyRoute
 }
 
 export interface FileRoutesById {
@@ -564,12 +490,9 @@ export interface FileRoutesById {
   '/_authenticated/consultasmedico/': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/_authenticated/dashboard_inicial/': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/_authenticated/importacao/': typeof AuthenticatedImportacaoIndexLazyRoute
   '/_authenticated/livro_fiscal/': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/_authenticated/pacientes/': typeof AuthenticatedPacientesIndexLazyRoute
   '/_authenticated/profissionais/': typeof AuthenticatedProfissionaisIndexLazyRoute
-  '/_authenticated/reinf_processamento/': typeof AuthenticatedReinfprocessamentoIndexLazyRoute
-  '/_authenticated/tasks/': typeof AuthenticatedTasksIndexLazyRoute
 }
 
 export interface FileRouteTypes {
@@ -592,12 +515,9 @@ export interface FileRouteTypes {
     | '/consultasmedico'
     | '/dashboard_inicial'
     | '/help-center'
-    | '/importacao'
     | '/livro_fiscal'
     | '/pacientes'
     | '/profissionais'
-    | '/reinf_processamento'
-    | '/tasks'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/500'
@@ -616,12 +536,9 @@ export interface FileRouteTypes {
     | '/consultasmedico'
     | '/dashboard_inicial'
     | '/help-center'
-    | '/importacao'
     | '/livro_fiscal'
     | '/pacientes'
     | '/profissionais'
-    | '/reinf_processamento'
-    | '/tasks'
   id:
     | '__root__'
     | '/_authenticated'
@@ -642,12 +559,9 @@ export interface FileRouteTypes {
     | '/_authenticated/consultasmedico/'
     | '/_authenticated/dashboard_inicial/'
     | '/_authenticated/help-center/'
-    | '/_authenticated/importacao/'
     | '/_authenticated/livro_fiscal/'
     | '/_authenticated/pacientes/'
     | '/_authenticated/profissionais/'
-    | '/_authenticated/reinf_processamento/'
-    | '/_authenticated/tasks/'
   fileRoutesById: FileRoutesById
 }
 
@@ -714,12 +628,9 @@ export const routeTree = rootRoute
         "/_authenticated/consultasmedico/",
         "/_authenticated/dashboard_inicial/",
         "/_authenticated/help-center/",
-        "/_authenticated/importacao/",
         "/_authenticated/livro_fiscal/",
         "/_authenticated/pacientes/",
-        "/_authenticated/profissionais/",
-        "/_authenticated/reinf_processamento/",
-        "/_authenticated/tasks/"
+        "/_authenticated/profissionais/"
       ]
     },
     "/(auth)/500": {
@@ -779,10 +690,6 @@ export const routeTree = rootRoute
       "filePath": "_authenticated/help-center/index.lazy.tsx",
       "parent": "/_authenticated"
     },
-    "/_authenticated/importacao/": {
-      "filePath": "_authenticated/importacao/index.lazy.tsx",
-      "parent": "/_authenticated"
-    },
     "/_authenticated/livro_fiscal/": {
       "filePath": "_authenticated/livro_fiscal/index.lazy.tsx",
       "parent": "/_authenticated"
@@ -793,14 +700,6 @@ export const routeTree = rootRoute
     },
     "/_authenticated/profissionais/": {
       "filePath": "_authenticated/profissionais/index.lazy.tsx",
-      "parent": "/_authenticated"
-    },
-    "/_authenticated/reinf_processamento/": {
-      "filePath": "_authenticated/reinf_processamento/index.lazy.tsx",
-      "parent": "/_authenticated"
-    },
-    "/_authenticated/tasks/": {
-      "filePath": "_authenticated/tasks/index.lazy.tsx",
       "parent": "/_authenticated"
     }
   }

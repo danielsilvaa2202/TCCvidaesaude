@@ -4,7 +4,7 @@ import {
   IconDashboard,
   IconReport,
   IconCalculator,
-  IconSettings, // usando IconSettings como alternativa ao IconCog
+  IconSettings,
 } from '@tabler/icons-react'
 import { type SidebarData } from '../types'
 
@@ -55,7 +55,7 @@ export const sidebarData: SidebarData = {
         },
         {
           title: 'Admin',
-          icon: IconSettings, // ícone atualizado para representar processamento
+          icon: IconSettings,
           items: [
             {
               title: 'Gestão',

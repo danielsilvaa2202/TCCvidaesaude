@@ -8,7 +8,6 @@ import SkipToMain from "@/components/skip-to-main";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect } from "react";
 
-// /_authenticated -> rota "pai" com layout que exige login
 export const Route = createFileRoute("/_authenticated")({
   component: RouteComponent,
 });
@@ -21,7 +20,6 @@ function RouteComponent() {
   useEffect(() => {
     console.log("Is Authenticated:", isAuthenticated);
     if (!isAuthenticated) {
-      // Se não está logado, redireciona pro login
       const currentUrl = window.location.pathname + window.location.search;
       router.navigate({
         to: "/sign-in-2",

@@ -1,5 +1,3 @@
-// app-sidebar.tsx
-
 import React from 'react'
 import {
   Sidebar,
@@ -10,14 +8,32 @@ import {
 } from '@/components/ui/sidebar'
 import { NavGroup } from '@/components/layout/nav-group'
 import { NavUser } from '@/components/layout/nav-user'
-import { Logo } from '@/components/layout/logo' // Novo componente Logo
+import { Logo } from '@/components/layout/logo'
 import { sidebarData } from './data/sidebar-data'
+import { useAuthStore } from '@/stores/authStore'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user: authUser } = useAuthStore();
+
+  const dynamicUser = {
+    name: authUser?.prof_email?.split('@')[0] || 'Usuário',
+    email: authUser?.prof_email || 'usuario@exemplo.com',
+    avatar: '/avatars/shadcn.jpg',
+  };
+
+  const initials = authUser?.prof_email
+    ? authUser.prof_email
+        .split('@')[0]
+        .split('.')
+        .map((name: string) => name.charAt(0).toUpperCase())
+        .join('')
+        .slice(0, 2)
+    : 'US';
+
   return (
     <Sidebar collapsible='icon' variant='floating' {...props}>
       <SidebarHeader>
-        <Logo /> {/* Substituição do TeamSwitcher pelo Logo */}
+        <Logo />
       </SidebarHeader>
       <SidebarContent>
         {sidebarData.navGroups.map((group) => (
@@ -25,7 +41,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ))}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={sidebarData.user} />
+        <NavUser user={{ ...dynamicUser, initials }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

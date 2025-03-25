@@ -16,13 +16,9 @@ export const Route = createRootRouteWithContext<{
         <Outlet />
         <Toaster />
 
-        {/* Se você quer “bottom-left” mas está dando erro de tipo, faça: */}
         {import.meta.env.MODE === "development" && (
           <>
             <ReactQueryDevtools
-              // Se sua versão aceita, use diretamente:
-              // position="bottom-left"
-              // Se não aceita mas funciona em runtime, use casting:
               position={"bottom-left" as any}
               initialIsOpen={false}
             />
