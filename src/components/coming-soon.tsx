@@ -7,9 +7,9 @@ export default function ComingSoon() {
         <div className="flex justify-center">
           <IconCalendarStats size={72} className="text-primary" />
         </div>
-        <h1 className='text-2xl font-bold leading-tight text-red-600'>O MIT ainda não está disponível no site da Receita Federal (E-CAC)</h1>
+        <h1 className='text-2xl font-bold leading-tight text-red-600'>Esse módulo não está disponível ainda</h1>
         <p className='text-lg text-muted-foreground'>
-          Liberação prevista para <strong>2ª Quinzena de Fevereiro</strong>
+          Disponível <strong>Em breve!</strong>
         </p>
       </div>
     </div>

@@ -2,9 +2,6 @@
 
 import React, { useState } from "react";
 
-// -------------
-// Layout & UI
-// -------------
 import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
@@ -12,7 +9,7 @@ import { ProfileDropdown } from "@/components/profile-dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea"; // Se existir no seu projeto
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardHeader,
@@ -37,9 +34,7 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 
-// -------------
-// Tipos
-// -------------
+
 interface TopNavLink {
   title: string;
   href: string;
@@ -47,17 +42,15 @@ interface TopNavLink {
   disabled: boolean;
 }
 
-// Simples modelagem da agenda
 interface Consultation {
   id: number;
-  idMedico: number; // Relacionado ao Medicos.id_medico
-  idPaciente: number; // Pacientes
-  date: string;  // YYYY-MM-DD
-  time: string;  // HH:mm
+  idMedico: number; 
+  idPaciente: number;
+  date: string;
+  time: string;
   doctorName: string;  
   patientName: string;
   specialty: string;
-  // etc. (id_consulta no BD, status, etc.)
 }
 
 interface Medico {
@@ -67,9 +60,7 @@ interface Medico {
   especialidade: string;
 }
 
-// -------------
-// Dados Mock
-// -------------
+
 const topNavLinks: TopNavLink[] = [
   { title: "Início", href: "/", isActive: true, disabled: false },
   { title: "Consultas", href: "/consultasgestao", isActive: true, disabled: false },
@@ -77,13 +68,11 @@ const topNavLinks: TopNavLink[] = [
 ];
 
 
-// Lista de médicos fictícios
 const mockMedicos: Medico[] = [
   { idMedico: 1, nome: "Dr. Daniel Silva", crm: "12345", especialidade: "Cardiologia" },
   { idMedico: 2, nome: "Dra. Maria Souza", crm: "67890", especialidade: "Pediatria" },
 ];
 
-// Agenda fictícia de consultas
 const mockConsultations: Consultation[] = [
   {
     id: 101,
@@ -118,31 +107,12 @@ const mockConsultations: Consultation[] = [
 ];
 
 const ConsultaMedicoPage: React.FC = () => {
-  // -----------------------------------
-  // Estado: Filtros / Seleção do médico
-  // -----------------------------------
-  const [selectedMedicoId, setSelectedMedicoId] = useState<number>(1); // default 1
+  const [selectedMedicoId, setSelectedMedicoId] = useState<number>(1);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-
-  // -----------------------------------
-  // Estado: Lista de consultas (mock)
-  // -----------------------------------
   const [consultations] = useState<Consultation[]>(mockConsultations);
-
-  // -----------------------------------
-  // Estado: qual consulta está selecionada
-  // -----------------------------------
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
-
-  // -----------------------------------
-  // Estado: campo "observações" (exemplo)
-  // -----------------------------------
   const [observacoes, setObservacoes] = useState("");
-
-  // -----------------------------------
-  // Filtrar a lista de consultas pela "Agenda"
-  // -----------------------------------
   const filteredConsultations = consultations.filter((c) => {
     const sameMedico = c.idMedico === selectedMedicoId;
     const inRange =
@@ -150,32 +120,17 @@ const ConsultaMedicoPage: React.FC = () => {
       (!dateTo || c.date <= dateTo);
     return sameMedico && inRange;
   });
-
-  // -----------------------------------
-  // Handler: selecionar uma consulta
-  // -----------------------------------
   const handleSelectConsulta = (consulta: Consultation) => {
     setSelectedConsultation(consulta);
-    // Exemplo: busque do BD `HistoricoMedico` para populá-lo
-    // Por enquanto, "observacoes" reset ou carrega algo fictício:
     setObservacoes("");
   };
-
-  // -----------------------------------
-  // Handler: salvar as mudanças na consulta
-  // -----------------------------------
   const handleSalvarConsulta = () => {
     if (!selectedConsultation) return;
     alert(
       `Salvando dados da consulta ID: ${selectedConsultation.id}\n` +
       `Observações: ${observacoes}`
     );
-    // AQUI -> Chamar API p/ atualizar HistoricoMedico / consult_observacoes etc.
   };
-
-  // -----------------------------------
-  // Render
-  // -----------------------------------
   return (
     <>
       <Header>
@@ -189,10 +144,7 @@ const ConsultaMedicoPage: React.FC = () => {
         <h1 className="text-3xl font-bold font-quicksand">
           Acesso do Médico
         </h1>
-
-        {/* Abas no topo */}
         <Tabs
-          // desabilite abas adicionais se não tiver selectedConsultation
           defaultValue="agenda"
           className="space-y-4"
         >
@@ -236,9 +188,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* -----------------------
-              TAB 1: AGENDA DO MÉDICO
-             ----------------------- */}
           <TabsContent value="agenda">
             <Card className="shadow-sm">
               <CardHeader>
@@ -250,7 +199,6 @@ const ConsultaMedicoPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Filtros da Agenda */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <Label>Médico:</Label>
                   <select
@@ -281,7 +229,6 @@ const ConsultaMedicoPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Tabela de Consultas (Agenda) */}
                 <ScrollArea className="h-[300px]">
                   <Table className="w-full table-auto border-separate border-spacing-0 text-sm">
                     <TableHeader>
@@ -352,9 +299,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 2: DADOS DA CONSULTA
-             ----------------------- */}
           <TabsContent value="dados">
             <Card className="shadow-sm">
               <CardHeader>
@@ -390,9 +334,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 3: ALERGIAS
-             ----------------------- */}
           <TabsContent value="alergias">
             <Card className="shadow-sm">
               <CardHeader>
@@ -405,7 +346,6 @@ const ConsultaMedicoPage: React.FC = () => {
                     <p>
                       <strong>Consulta: </strong>#{selectedConsultation.id}
                     </p>
-                    {/* Exibir Tabela de Alergias ou Botão "Adicionar Alergia" */}
                     <p className="mt-2 text-sm">
                       Aqui você adicionaria/registra as alergias relacionadas ao
                       histórico médico...
@@ -418,9 +358,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 4: MEDICAMENTOS
-             ----------------------- */}
           <TabsContent value="medicamentos">
             <Card className="shadow-sm">
               <CardHeader>
@@ -444,9 +381,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 5: DOENÇAS
-             ----------------------- */}
           <TabsContent value="doencas">
             <Card className="shadow-sm">
               <CardHeader>
@@ -470,9 +404,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 6: DOENÇAS FAMILIARES
-             ----------------------- */}
           <TabsContent value="familiares">
             <Card className="shadow-sm">
               <CardHeader>
@@ -496,9 +427,6 @@ const ConsultaMedicoPage: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* -----------------------
-              TAB 7: PRESCRICOES
-             ----------------------- */}
           <TabsContent value="prescricoes">
             <Card className="shadow-sm">
               <CardHeader>

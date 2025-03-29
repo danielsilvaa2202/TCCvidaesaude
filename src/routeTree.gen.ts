@@ -37,9 +37,6 @@ const AuthenticatedProfissionaisIndexLazyImport = createFileRoute(
 const AuthenticatedPacientesIndexLazyImport = createFileRoute(
   '/_authenticated/pacientes/',
 )()
-const AuthenticatedLivrofiscalIndexLazyImport = createFileRoute(
-  '/_authenticated/livro_fiscal/',
-)()
 const AuthenticatedHelpCenterIndexLazyImport = createFileRoute(
   '/_authenticated/help-center/',
 )()
@@ -51,9 +48,6 @@ const AuthenticatedConsultasmedicoIndexLazyImport = createFileRoute(
 )()
 const AuthenticatedConsultasgestaoIndexLazyImport = createFileRoute(
   '/_authenticated/consultasgestao/',
-)()
-const AuthenticatedCadastrosIndexLazyImport = createFileRoute(
-  '/_authenticated/cadastros/',
 )()
 
 // Create/Update Routes
@@ -173,17 +167,6 @@ const AuthenticatedPacientesIndexLazyRoute =
     import('./routes/_authenticated/pacientes/index.lazy').then((d) => d.Route),
   )
 
-const AuthenticatedLivrofiscalIndexLazyRoute =
-  AuthenticatedLivrofiscalIndexLazyImport.update({
-    id: '/livro_fiscal/',
-    path: '/livro_fiscal/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/livro_fiscal/index.lazy').then(
-      (d) => d.Route,
-    ),
-  )
-
 const AuthenticatedHelpCenterIndexLazyRoute =
   AuthenticatedHelpCenterIndexLazyImport.update({
     id: '/help-center/',
@@ -226,15 +209,6 @@ const AuthenticatedConsultasgestaoIndexLazyRoute =
     import('./routes/_authenticated/consultasgestao/index.lazy').then(
       (d) => d.Route,
     ),
-  )
-
-const AuthenticatedCadastrosIndexLazyRoute =
-  AuthenticatedCadastrosIndexLazyImport.update({
-    id: '/cadastros/',
-    path: '/cadastros/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/cadastros/index.lazy').then((d) => d.Route),
   )
 
 // Populate the FileRoutesByPath interface
@@ -332,13 +306,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexImport
       parentRoute: typeof AuthenticatedRouteImport
     }
-    '/_authenticated/cadastros/': {
-      id: '/_authenticated/cadastros/'
-      path: '/cadastros'
-      fullPath: '/cadastros'
-      preLoaderRoute: typeof AuthenticatedCadastrosIndexLazyImport
-      parentRoute: typeof AuthenticatedRouteImport
-    }
     '/_authenticated/consultasgestao/': {
       id: '/_authenticated/consultasgestao/'
       path: '/consultasgestao'
@@ -367,13 +334,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexLazyImport
       parentRoute: typeof AuthenticatedRouteImport
     }
-    '/_authenticated/livro_fiscal/': {
-      id: '/_authenticated/livro_fiscal/'
-      path: '/livro_fiscal'
-      fullPath: '/livro_fiscal'
-      preLoaderRoute: typeof AuthenticatedLivrofiscalIndexLazyImport
-      parentRoute: typeof AuthenticatedRouteImport
-    }
     '/_authenticated/pacientes/': {
       id: '/_authenticated/pacientes/'
       path: '/pacientes'
@@ -395,19 +355,16 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-  AuthenticatedCadastrosIndexLazyRoute: typeof AuthenticatedCadastrosIndexLazyRoute
   AuthenticatedConsultasgestaoIndexLazyRoute: typeof AuthenticatedConsultasgestaoIndexLazyRoute
   AuthenticatedConsultasmedicoIndexLazyRoute: typeof AuthenticatedConsultasmedicoIndexLazyRoute
   AuthenticatedDashboardinicialIndexLazyRoute: typeof AuthenticatedDashboardinicialIndexLazyRoute
   AuthenticatedHelpCenterIndexLazyRoute: typeof AuthenticatedHelpCenterIndexLazyRoute
-  AuthenticatedLivrofiscalIndexLazyRoute: typeof AuthenticatedLivrofiscalIndexLazyRoute
   AuthenticatedPacientesIndexLazyRoute: typeof AuthenticatedPacientesIndexLazyRoute
   AuthenticatedProfissionaisIndexLazyRoute: typeof AuthenticatedProfissionaisIndexLazyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
-  AuthenticatedCadastrosIndexLazyRoute: AuthenticatedCadastrosIndexLazyRoute,
   AuthenticatedConsultasgestaoIndexLazyRoute:
     AuthenticatedConsultasgestaoIndexLazyRoute,
   AuthenticatedConsultasmedicoIndexLazyRoute:
@@ -415,8 +372,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardinicialIndexLazyRoute:
     AuthenticatedDashboardinicialIndexLazyRoute,
   AuthenticatedHelpCenterIndexLazyRoute: AuthenticatedHelpCenterIndexLazyRoute,
-  AuthenticatedLivrofiscalIndexLazyRoute:
-    AuthenticatedLivrofiscalIndexLazyRoute,
   AuthenticatedPacientesIndexLazyRoute: AuthenticatedPacientesIndexLazyRoute,
   AuthenticatedProfissionaisIndexLazyRoute:
     AuthenticatedProfissionaisIndexLazyRoute,
@@ -438,12 +393,10 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404LazyRoute
   '/503': typeof errors503LazyRoute
   '/': typeof AuthenticatedIndexRoute
-  '/cadastros': typeof AuthenticatedCadastrosIndexLazyRoute
   '/consultasgestao': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/livro_fiscal': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/pacientes': typeof AuthenticatedPacientesIndexLazyRoute
   '/profissionais': typeof AuthenticatedProfissionaisIndexLazyRoute
 }
@@ -460,12 +413,10 @@ export interface FileRoutesByTo {
   '/404': typeof errors404LazyRoute
   '/503': typeof errors503LazyRoute
   '/': typeof AuthenticatedIndexRoute
-  '/cadastros': typeof AuthenticatedCadastrosIndexLazyRoute
   '/consultasgestao': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/livro_fiscal': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/pacientes': typeof AuthenticatedPacientesIndexLazyRoute
   '/profissionais': typeof AuthenticatedProfissionaisIndexLazyRoute
 }
@@ -485,12 +436,10 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500LazyRoute
   '/(errors)/503': typeof errors503LazyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/_authenticated/cadastros/': typeof AuthenticatedCadastrosIndexLazyRoute
   '/_authenticated/consultasgestao/': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/_authenticated/consultasmedico/': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/_authenticated/dashboard_inicial/': typeof AuthenticatedDashboardinicialIndexLazyRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexLazyRoute
-  '/_authenticated/livro_fiscal/': typeof AuthenticatedLivrofiscalIndexLazyRoute
   '/_authenticated/pacientes/': typeof AuthenticatedPacientesIndexLazyRoute
   '/_authenticated/profissionais/': typeof AuthenticatedProfissionaisIndexLazyRoute
 }
@@ -510,12 +459,10 @@ export interface FileRouteTypes {
     | '/404'
     | '/503'
     | '/'
-    | '/cadastros'
     | '/consultasgestao'
     | '/consultasmedico'
     | '/dashboard_inicial'
     | '/help-center'
-    | '/livro_fiscal'
     | '/pacientes'
     | '/profissionais'
   fileRoutesByTo: FileRoutesByTo
@@ -531,12 +478,10 @@ export interface FileRouteTypes {
     | '/404'
     | '/503'
     | '/'
-    | '/cadastros'
     | '/consultasgestao'
     | '/consultasmedico'
     | '/dashboard_inicial'
     | '/help-center'
-    | '/livro_fiscal'
     | '/pacientes'
     | '/profissionais'
   id:
@@ -554,12 +499,10 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
-    | '/_authenticated/cadastros/'
     | '/_authenticated/consultasgestao/'
     | '/_authenticated/consultasmedico/'
     | '/_authenticated/dashboard_inicial/'
     | '/_authenticated/help-center/'
-    | '/_authenticated/livro_fiscal/'
     | '/_authenticated/pacientes/'
     | '/_authenticated/profissionais/'
   fileRoutesById: FileRoutesById
@@ -623,12 +566,10 @@ export const routeTree = rootRoute
       "filePath": "_authenticated/route.tsx",
       "children": [
         "/_authenticated/",
-        "/_authenticated/cadastros/",
         "/_authenticated/consultasgestao/",
         "/_authenticated/consultasmedico/",
         "/_authenticated/dashboard_inicial/",
         "/_authenticated/help-center/",
-        "/_authenticated/livro_fiscal/",
         "/_authenticated/pacientes/",
         "/_authenticated/profissionais/"
       ]
@@ -670,10 +611,6 @@ export const routeTree = rootRoute
       "filePath": "_authenticated/index.tsx",
       "parent": "/_authenticated"
     },
-    "/_authenticated/cadastros/": {
-      "filePath": "_authenticated/cadastros/index.lazy.tsx",
-      "parent": "/_authenticated"
-    },
     "/_authenticated/consultasgestao/": {
       "filePath": "_authenticated/consultasgestao/index.lazy.tsx",
       "parent": "/_authenticated"
@@ -688,10 +625,6 @@ export const routeTree = rootRoute
     },
     "/_authenticated/help-center/": {
       "filePath": "_authenticated/help-center/index.lazy.tsx",
-      "parent": "/_authenticated"
-    },
-    "/_authenticated/livro_fiscal/": {
-      "filePath": "_authenticated/livro_fiscal/index.lazy.tsx",
       "parent": "/_authenticated"
     },
     "/_authenticated/pacientes/": {

@@ -13,14 +13,11 @@ import { toast } from "@/hooks/use-toast";
 import { ThemeProvider } from "@/context/theme-context";
 import "./index.css";
 
-// IMPORTANTE: importe sua árvore de rotas, gerada pelo TanStack Router CLI
 import { routeTree } from "./routeTree.gen";
 
-// Cria QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Exemplo de retry
       retry: (failureCount, error) => {
         if (import.meta.env.DEV) {
           console.log("[React Query Retry]", { failureCount, error });
@@ -28,9 +25,7 @@ const queryClient = new QueryClient({
         if (failureCount > 3) return false;
         return true;
       },
-      // Em produção, refetch ao focar a janela
       refetchOnWindowFocus: import.meta.env.PROD,
-      // staleness
       staleTime: 10 * 1000,
     },
     mutations: {
@@ -42,14 +37,12 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       if (error instanceof AxiosError) {
-        // Interceptar 401 no React Query
         if (error.response?.status === 401) {
           toast({
             variant: "destructive",
             title: "Sessão expirada!",
           });
           useAuthStore.getState().reset();
-          // Redireciona para login
           const redirect = router.history.location.href;
           router.navigate({ to: "/sign-in-2", search: { redirect } });
         }
@@ -65,7 +58,6 @@ const queryClient = new QueryClient({
   }),
 });
 
-// Cria o router
 const router = createRouter({
   routeTree,
   context: { queryClient },
@@ -73,14 +65,12 @@ const router = createRouter({
   defaultPreloadStaleTime: 0,
 });
 
-// Tipagem do TanStack Router
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
 }
 
-// Render
 const rootElement = document.getElementById("root");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);

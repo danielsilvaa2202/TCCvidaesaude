@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 
-// -------------
-// UI Components
-// -------------
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,16 +43,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// -------------
-// Layout
-// -------------
 import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 
-// -------------
-// Types
-// -------------
 interface TopNavLink {
   title: string;
   href: string;
@@ -65,18 +56,15 @@ interface TopNavLink {
 
 interface Consultation {
   id: number;
-  date: string;        // "YYYY-MM-DD"
-  time: string;        // "HH:mm"
+  date: string;
+  time: string;      
   doctor: string;
   patient: string;
   specialty: string;
-  // simulamos data de registro p/ filtrar
   registrationDate: string;
 }
 
-// -------------
-// Mock: TopNav
-// -------------
+
 const topNavLinks: TopNavLink[] = [
   { title: "Início", href: "/", isActive: true, disabled: false },
   { title: "Consultas", href: "/consultasgestao", isActive: true, disabled: false },
@@ -84,9 +72,7 @@ const topNavLinks: TopNavLink[] = [
 ];
 
 const ConsultasPage: React.FC = () => {
-  // -------------------------------------
-  // State: consultas (exemplo)
-  // -------------------------------------
+
   const [consultations, setConsultations] = useState<Consultation[]>([
     {
       id: 1,
@@ -108,9 +94,6 @@ const ConsultasPage: React.FC = () => {
     },
   ]);
 
-  // -------------------------------------
-  // State: Filtros
-  // -------------------------------------
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSpecialty, setFilterSpecialty] = useState("");
   const [filterDoctor, setFilterDoctor] = useState("");
@@ -118,31 +101,21 @@ const ConsultasPage: React.FC = () => {
   const [registrationFrom, setRegistrationFrom] = useState("");
   const [registrationTo, setRegistrationTo] = useState("");
 
-  // -------------------------------------
-  // State: create/edit dialog
-  // -------------------------------------
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
 
-  // Campos do formulário
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [newDoctor, setNewDoctor] = useState("");
   const [newPatient, setNewPatient] = useState("");
   const [newSpecialty, setNewSpecialty] = useState("");
 
-  // -------------------------------------
-  // AlertDialog: excluir
-  // -------------------------------------
   const [alertOpen, setAlertOpen] = useState(false);
   const [consultToDelete, setConsultToDelete] = useState<Consultation | null>(
     null
   );
 
-  // -------------------------------------
-  // Carrega no form ao editar
-  // -------------------------------------
   useEffect(() => {
     if (dialogMode === "edit" && selectedConsultationId !== null) {
       const c = consultations.find((c) => c.id === selectedConsultationId);
@@ -156,9 +129,6 @@ const ConsultasPage: React.FC = () => {
     }
   }, [dialogMode, selectedConsultationId, consultations]);
 
-  // -------------------------------------
-  // Limpa form
-  // -------------------------------------
   const clearForm = () => {
     setNewDate("");
     setNewTime("");
@@ -167,9 +137,6 @@ const ConsultasPage: React.FC = () => {
     setNewSpecialty("");
   };
 
-  // -------------------------------------
-  // Abrir create
-  // -------------------------------------
   const openCreateDialog = () => {
     setDialogMode("create");
     setSelectedConsultationId(null);
@@ -177,18 +144,12 @@ const ConsultasPage: React.FC = () => {
     setDialogOpen(true);
   };
 
-  // -------------------------------------
-  // Abrir edit
-  // -------------------------------------
   const openEditDialog = (id: number) => {
     setDialogMode("edit");
     setSelectedConsultationId(id);
     setDialogOpen(true);
   };
 
-  // -------------------------------------
-  // Submit form
-  // -------------------------------------
   const handleSubmitConsultation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDate || !newTime || !newDoctor || !newPatient || !newSpecialty) {
@@ -231,9 +192,6 @@ const ConsultasPage: React.FC = () => {
     clearForm();
   };
 
-  // -------------------------------------
-  // Excluir
-  // -------------------------------------
   const openDeleteAlert = (consultation: Consultation) => {
     setConsultToDelete(consultation);
     setAlertOpen(true);
@@ -247,9 +205,6 @@ const ConsultasPage: React.FC = () => {
     setConsultToDelete(null);
   };
 
-  // -------------------------------------
-  // Registrar presença/ausência
-  // -------------------------------------
   const handleRegisterPresence = (id: number) => {
     alert(`Presença registrada para a consulta ID ${id}.`);
   };
@@ -258,9 +213,6 @@ const ConsultasPage: React.FC = () => {
     alert(`Ausência registrada para a consulta ID ${id}.`);
   };
 
-  // -------------------------------------
-  // Filtro final
-  // -------------------------------------
   const filteredConsultations = consultations.filter((c) => {
     const term = searchTerm.toLowerCase();
 

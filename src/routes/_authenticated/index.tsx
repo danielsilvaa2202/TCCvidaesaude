@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import EventosPage from '@/features/apps/consultasgestao'
+import DashboardPage from '@/features/apps/dashboard_inicial'
 
 export const Route = createFileRoute('/_authenticated/')({
-  component: EventosPage,
+  component: DashboardPage,
 })

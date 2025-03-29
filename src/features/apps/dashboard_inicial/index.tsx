@@ -12,7 +12,6 @@ import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 
-// Seu componente customizado de charts
 import {
   ChartContainer,
   ChartTooltip,
