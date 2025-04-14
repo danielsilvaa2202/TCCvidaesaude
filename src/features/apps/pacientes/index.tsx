@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,37 +46,6 @@ import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 
-// Funções para formatação dos inputs
-const formatCPF = (value: string): string => {
-  // Remove tudo que não for dígito.
-  let digits = value.replace(/\D/g, "");
-  if (digits.length > 11) digits = digits.slice(0, 11);
-  if (digits.length > 9) {
-    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4");
-  } else if (digits.length > 6) {
-    return digits.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
-  } else if (digits.length > 3) {
-    return digits.replace(/(\d{3})(\d{0,3})/, "$1.$2");
-  } else {
-    return digits;
-  }
-};
-
-const formatPhone = (value: string): string => {
-  let digits = value.replace(/\D/g, "");
-  if (digits.length > 11) digits = digits.slice(0, 11);
-  if (digits.length > 6) {
-    return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
-  } else if (digits.length > 2) {
-    return digits.replace(/(\d{2})(\d{0,5})/, "($1) $2");
-  } else {
-    return digits;
-  }
-};
-
-// ---------------------------
-// Tipos para os links e para o paciente
-// ---------------------------
 interface TopNavLink {
   title: string;
   href: string;
@@ -85,20 +54,19 @@ interface TopNavLink {
 }
 
 interface Patient {
-  id: number;
-  cpf: string;
-  name: string;
-  email: string;
-  phone: string;
-  birthDate: string; // "AAAA-MM-DD"
-  gender: string; // "M", "F", etc.
-  cep: string;
-  address: string;
-  city: string;
-  state: string;
-  registrationDate: string; // "AAAA-MM-DD"
-  active: boolean;
-  pdfLink?: string;
+  id_paciente: number;
+  pac_cpf: string;
+  pac_nome: string;
+  pac_email: string;
+  pac_telefone: string;
+  pac_data_nascimento: string;
+  pac_genero: string;
+  pac_cep: string;
+  pac_endereco: string;
+  pac_cidade: string;
+  pac_estado: string;
+  pac_data_cadastro: string;
+  pac_ativo: boolean;
 }
 
 const topNavLinks: TopNavLink[] = [
@@ -107,39 +75,16 @@ const topNavLinks: TopNavLink[] = [
   { title: "Pacientes", href: "/pacientes", isActive: true, disabled: false },
 ];
 
-
 const PacientesPage: React.FC = () => {
-  // Lista de pacientes (exemplo inicial)
-  const [patients, setPatients] = useState<Patient[]>([
-    {
-      id: 1,
-      cpf: "123.456.789-00",
-      name: "Kailane Del Conti",
-      email: "kailane@example.com",
-      phone: "(11) 98765-4321",
-      birthDate: "1987-03-15",
-      gender: "F",
-      cep: "01001-000",
-      address: "Rua das Flores, 123",
-      city: "São Paulo",
-      state: "SP",
-      registrationDate: "2023-03-01",
-      active: true,
-      pdfLink: "/exemplo_prontuario.pdf",
-    },
-  ]);
-
-  // Filtros de busca e data de cadastro
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [registrationFrom, setRegistrationFrom] = useState("");
-  const [registrationTo, setRegistrationTo] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  // Estado do Dialog para criação/edição
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
 
-  // Campos do formulário
   const [cpf, setCpf] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -151,27 +96,49 @@ const PacientesPage: React.FC = () => {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
 
-  // Ao abrir em modo edição, carrega os dados do paciente selecionado
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = () => {
+    let url = "/api/pacientes";
+    const params = [];
+    if (dateFrom) params.push(`data_ini=${dateFrom}`);
+    if (dateTo) params.push(`data_fim=${dateTo}`);
+    if (params.length > 0) url += "?" + params.join("&");
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data: Patient[]) => {
+        setPatients(data);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar pacientes:", err);
+      });
+  };
+
   useEffect(() => {
     if (dialogMode === "edit" && selectedPatientId !== null) {
-      const patientToEdit = patients.find((p) => p.id === selectedPatientId);
-      if (patientToEdit) {
-        setCpf(patientToEdit.cpf);
-        setName(patientToEdit.name);
-        setEmail(patientToEdit.email);
-        setPhone(patientToEdit.phone);
-        setBirthDate(patientToEdit.birthDate);
-        setGender(patientToEdit.gender);
-        setCep(patientToEdit.cep);
-        setAddress(patientToEdit.address);
-        setCity(patientToEdit.city);
-        setState(patientToEdit.state);
+      const p = patients.find((x) => x.id_paciente === selectedPatientId);
+      if (p) {
+        setCpf(p.pac_cpf);
+        setName(p.pac_nome);
+        setEmail(p.pac_email);
+        setPhone(p.pac_telefone);
+        setBirthDate(p.pac_data_nascimento);
+        setGender(p.pac_genero);
+        setCep(p.pac_cep);
+        setAddress(p.pac_endereco);
+        setCity(p.pac_cidade);
+        setState(p.pac_estado);
       }
     }
   }, [dialogMode, selectedPatientId, patients]);
 
-  // Limpa os campos do formulário
-  const clearForm = (): void => {
+  const clearForm = () => {
     setCpf("");
     setName("");
     setEmail("");
@@ -184,96 +151,109 @@ const PacientesPage: React.FC = () => {
     setState("");
   };
 
-  // Abre o modal em modo "create"
-  const openCreateDialog = (): void => {
+  const openCreateDialog = () => {
     setDialogMode("create");
     setSelectedPatientId(null);
     clearForm();
     setDialogOpen(true);
   };
 
-  // Abre o modal em modo "edit"
-  const openEditDialog = (id: number): void => {
+  const openEditDialog = (id: number) => {
     setDialogMode("edit");
     setSelectedPatientId(id);
     setDialogOpen(true);
   };
 
-  // Submete o formulário (criação ou edição)
-  const handleSubmitPatient = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!cpf || !name || !birthDate) {
       alert("CPF, Nome e Data de Nascimento são obrigatórios.");
       return;
     }
 
-    if (dialogMode === "create") {
-      const newPatient: Patient = {
-        id: patients.length > 0 ? patients[patients.length - 1].id + 1 : 1,
-        cpf,
-        name,
-        email,
-        phone,
-        birthDate,
-        gender,
-        cep,
-        address,
-        city,
-        state,
-        registrationDate: new Date().toISOString().split("T")[0],
-        active: true,
-        pdfLink: "/exemplo_prontuario.pdf",
-      };
-      setPatients((prev) => [...prev, newPatient]);
-    } else {
-      setPatients((prev) =>
-        prev.map((p) =>
-          p.id === selectedPatientId
-            ? { ...p, cpf, name, email, phone, birthDate, gender, cep, address, city, state }
-            : p
-        )
-      );
-    }
+    const payload = {
+      cpf,
+      name,
+      email,
+      phone,
+      birthDate,
+      gender,
+      cep,
+      address,
+      city,
+      state,
+    };
 
-    setDialogOpen(false);
-    clearForm();
+    if (dialogMode === "create") {
+      fetch("/api/pacientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao criar paciente");
+          return res.json();
+        })
+        .then((data) => {
+          fetchPatients();
+          setDialogOpen(false);
+          clearForm();
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao criar paciente");
+        });
+    } else {
+      if (!selectedPatientId) return;
+      fetch(`/api/pacientes/${selectedPatientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao editar paciente");
+          return res.json();
+        })
+        .then(() => {
+          fetchPatients();
+          setDialogOpen(false);
+          clearForm();
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao editar paciente");
+        });
+    }
   };
 
-  // ALERT DIALOG: Confirmação de exclusão
-  const [alertOpen, setAlertOpen] = useState(false);
-  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
-
-  const openDeleteAlert = (patient: Patient): void => {
-    setPatientToDelete(patient);
+  const openDeleteAlert = (p: Patient) => {
+    setPatientToDelete(p);
     setAlertOpen(true);
   };
 
-  const handleConfirmDelete = (): void => {
-    if (patientToDelete) {
-      setPatients((prev) => prev.filter((p) => p.id !== patientToDelete.id));
-    }
-    setAlertOpen(false);
-    setPatientToDelete(null);
+  const handleConfirmDelete = () => {
+    if (!patientToDelete) return;
+    fetch(`/api/pacientes/${patientToDelete.id_paciente}`, { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao excluir/inativar paciente");
+        fetchPatients();
+        setAlertOpen(false);
+        setPatientToDelete(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Erro ao excluir/inativar paciente");
+      });
   };
 
-  // Filtro de pacientes: compara datas como strings (formato "AAAA-MM-DD")
-  const filteredPatients = patients.filter((patient) => {
+  const filteredPatients = patients.filter((p) => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      patient.name.toLowerCase().includes(term) ||
-      patient.cpf.toLowerCase().includes(term) ||
-      patient.email.toLowerCase().includes(term) ||
-      patient.phone.toLowerCase().includes(term) ||
-      patient.address.toLowerCase().includes(term) ||
-      patient.city.toLowerCase().includes(term) ||
-      patient.state.toLowerCase().includes(term);
-
-    const matchesDate =
-      (!registrationFrom || patient.registrationDate >= registrationFrom) &&
-      (!registrationTo || patient.registrationDate <= registrationTo);
-
-    return matchesSearch && matchesDate;
+    return (
+      p.pac_nome.toLowerCase().includes(term) ||
+      p.pac_cpf.toLowerCase().includes(term) ||
+      p.pac_email.toLowerCase().includes(term) ||
+      p.pac_endereco.toLowerCase().includes(term)
+    );
   });
 
   return (
@@ -290,43 +270,33 @@ const PacientesPage: React.FC = () => {
           <h1 className="text-3xl font-bold font-quicksand">Lista de Pacientes</h1>
         </div>
 
-        {/* Filtros de busca e data */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="text"
               placeholder="Pesquisar..."
               value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setSearchTerm(e.target.value)
-              }
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-48"
             />
             <Input
               type="date"
-              value={registrationFrom}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setRegistrationFrom(e.target.value)
-              }
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="w-auto"
             />
             <Input
               type="date"
-              value={registrationTo}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setRegistrationTo(e.target.value)
-              }
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
               className="w-auto"
             />
           </div>
           <div className="mt-2 sm:mt-0">
-            <Button variant="default" onClick={openCreateDialog}>
-              Cadastrar Paciente
-            </Button>
+            <Button onClick={openCreateDialog}>Cadastrar Paciente</Button>
           </div>
         </div>
 
-        {/* Tabela de Pacientes */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-bold font-quicksand">
@@ -338,66 +308,45 @@ const PacientesPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[450px]">
-              <Table className="w-full table-auto border-separate border-spacing-0 text-sm">
+              <Table className="w-full text-sm">
                 <TableHeader>
-                  <TableRow className="border-b">
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Nome
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      CPF
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Nascimento
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      E-mail
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Telefone
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Endereço
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Cidade/Estado
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Cadastro
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold">
-                      Ações
-                    </TableHead>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Nascimento</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead>Endereço</TableHead>
+                    <TableHead>Cidade/Estado</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPatients.map((patient) => (
-                    <TableRow
-                      key={patient.id}
-                      className="border-b last:border-0 even:bg-muted/25 hover:bg-muted/50"
-                    >
-                      <TableCell className="px-2 py-2 align-middle">{patient.name}</TableCell>
-                      <TableCell className="px-2 py-2 align-middle">{patient.cpf}</TableCell>
-                      <TableCell className="px-2 py-2 align-middle whitespace-nowrap">
-                        {new Date(patient.birthDate).toLocaleDateString("pt-BR")}
+                  {filteredPatients.map((p) => (
+                    <TableRow key={p.id_paciente}>
+                      <TableCell>{p.pac_nome}</TableCell>
+                      <TableCell>{p.pac_cpf}</TableCell>
+                      <TableCell>
+                        {new Date(p.pac_data_nascimento).toLocaleDateString("pt-BR")}
                       </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">{patient.email}</TableCell>
-                      <TableCell className="px-2 py-2 align-middle">{patient.phone}</TableCell>
-                      <TableCell className="px-2 py-2 align-middle">{patient.address}</TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        {patient.city} / {patient.state}
+                      <TableCell>{p.pac_email}</TableCell>
+                      <TableCell>{p.pac_telefone}</TableCell>
+                      <TableCell>{p.pac_endereco}</TableCell>
+                      <TableCell>
+                        {p.pac_cidade} / {p.pac_estado}
                       </TableCell>
-                      <TableCell className="px-2 py-2 align-middle whitespace-nowrap">
-                        {new Date(patient.registrationDate).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(patient.id)}>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openEditDialog(p.id_paciente)}>
                             Editar
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="destructive" onClick={() => openDeleteAlert(patient)}>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => openDeleteAlert(p)}
+                              >
                                 Excluir
                               </Button>
                             </AlertDialogTrigger>
@@ -408,7 +357,7 @@ const PacientesPage: React.FC = () => {
                   ))}
                   {filteredPatients.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="px-2 py-4 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="py-4 text-center">
                         Nenhum paciente encontrado.
                       </TableCell>
                     </TableRow>
@@ -423,142 +372,97 @@ const PacientesPage: React.FC = () => {
         </Card>
       </main>
 
-      {/* Modal de Criação/Edição de Paciente */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[800px] w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {dialogMode === "create" ? "Cadastrar Paciente" : "Editar Paciente"}
             </DialogTitle>
-            <DialogDescription>
-              Preencha os campos obrigatórios e clique em &quot;Salvar&quot;.
-            </DialogDescription>
+            <DialogDescription>Preencha os campos obrigatórios.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitPatient}>
+          <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {/* CPF */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="cpf">CPF *</Label>
+                <Label>CPF *</Label>
                 <Input
                   type="text"
-                  id="cpf"
                   value={cpf}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setCpf(formatCPF(e.target.value))
-                  }
+                  onChange={(e) => setCpf(e.target.value)}
                   required
                 />
               </div>
-              {/* Nome */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="name">Nome *</Label>
+                <Label>Nome *</Label>
                 <Input
                   type="text"
-                  id="name"
                   value={name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setName(e.target.value)
-                  }
+                  onChange={(e) => setName(e.target.value)}
                   required
                 />
               </div>
-              {/* E-mail */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="email">E-mail</Label>
+                <Label>E-mail</Label>
                 <Input
                   type="email"
-                  id="email"
                   value={email}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setEmail(e.target.value)
-                  }
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              {/* Telefone */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="phone">Telefone</Label>
+                <Label>Telefone</Label>
                 <Input
                   type="text"
-                  id="phone"
                   value={phone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setPhone(formatPhone(e.target.value))
-                  }
+                  onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
-              {/* Data de Nascimento */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="birthDate">Data de Nascimento *</Label>
+                <Label>Data de Nascimento *</Label>
                 <Input
                   type="date"
-                  id="birthDate"
                   value={birthDate}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setBirthDate(e.target.value)
-                  }
+                  onChange={(e) => setBirthDate(e.target.value)}
                   required
                 />
               </div>
-              {/* Gênero */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="gender">Gênero</Label>
+                <Label>Gênero</Label>
                 <Input
                   type="text"
-                  id="gender"
-                  placeholder="M, F..."
                   value={gender}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setGender(e.target.value)
-                  }
+                  onChange={(e) => setGender(e.target.value)}
                 />
               </div>
-              {/* CEP */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="cep">CEP</Label>
+                <Label>CEP</Label>
                 <Input
                   type="text"
-                  id="cep"
                   value={cep}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setCep(e.target.value)
-                  }
+                  onChange={(e) => setCep(e.target.value)}
                 />
               </div>
-              {/* Endereço */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="address">Endereço</Label>
+                <Label>Endereço</Label>
                 <Input
                   type="text"
-                  id="address"
                   value={address}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setAddress(e.target.value)
-                  }
+                  onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
-              {/* Cidade */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="city">Cidade</Label>
+                <Label>Cidade</Label>
                 <Input
                   type="text"
-                  id="city"
                   value={city}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setCity(e.target.value)
-                  }
+                  onChange={(e) => setCity(e.target.value)}
                 />
               </div>
-              {/* Estado */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="state">Estado</Label>
+                <Label>Estado</Label>
                 <Input
                   type="text"
-                  id="state"
-                  placeholder="Ex: SP"
                   value={state}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setState(e.target.value)
-                  }
+                  onChange={(e) => setState(e.target.value)}
                 />
               </div>
             </div>
@@ -574,13 +478,12 @@ const PacientesPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ALERT DIALOG: Exclusão de Paciente */}
       <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja excluir?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir/Inativar Paciente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não poderá ser desfeita. O paciente será removido permanentemente do sistema.
+              Essa ação não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

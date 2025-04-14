@@ -1,25 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
-
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegendContent,
-} from "@/components/ui/chart";
-
-// Recharts
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LineChart,
   Line,
@@ -32,6 +17,13 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltipContent,
+  ChartLegendContent
+} from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
+// ... etc
 
 interface IndicadoresGerais {
   totalConsultas: number;
@@ -63,34 +55,12 @@ interface ConsultasPorEspecialidade {
   total: number;
 }
 
-// Exemplo de links do TopNav
 const topNavLinks = [
   { title: "Dashboard", href: "/", isActive: true, disabled: false },
   { title: "Consultas", href: "/consultasgestao", isActive: false, disabled: false },
   { title: "Pacientes", href: "/pacientes", isActive: false, disabled: false },
 ];
 
-// Endpoints (exemplo)
-const apiEndpoints = {
-  indicadoresGerais: "/api/indicadores-gerais",
-  consultasAgendadas: "/api/consultas-agendadas",
-  tempoMedioEspera: "/api/tempo-medio-espera",
-  consultasPorStatus: "/api/consultas-por-status",
-  consultasPorEspecialidade: "/api/consultas-por-especialidade",
-};
-
-// Paleta de cores pastéis
-const pastelColors = [
-  "#FFB5A7", // rosa claro
-  "#FCD5CE", // rosa-salmão
-  "#F8EAD8", // bege claro
-  "#BCEAD5", // verde-água claro
-  "#A0C4FF", // azul claro
-  "#BDB2FF", // roxinho claro
-  "#FFC6FF", // lilás
-];
-
-// Config. personalizadas de cor (pastel) para alguns casos específicos
 const chartConfigConsultas = {
   consultas: {
     label: "Consultas Agendadas",
@@ -105,7 +75,6 @@ const chartConfigTempoEspera = {
   },
 };
 
-// Config. para o Pie chart (Status)
 const chartStatusColors: Record<string, string> = {
   Pendente: "#FFD59E",
   Confirmada: "#FFB5A7",
@@ -113,7 +82,6 @@ const chartStatusColors: Record<string, string> = {
   Cancelada: "#FCD5CE",
 };
 
-// Config. para o Bar chart (Especialidades)
 const chartEspecialidadeColors: Record<string, string> = {
   Cardiologia: "#FFB5A7",
   Pediatria: "#F8EAD8",
@@ -131,70 +99,25 @@ const DashboardPage: React.FC = () => {
   const [consultasEspecialidade, setConsultasEspecialidade] = useState<ConsultasPorEspecialidade[]>([]);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        // Dados de exemplo (mock). Substitua pelo fetch real
-        const indicadoresMock: IndicadoresGerais = {
-          totalConsultas: 1340,
-          totalPacientes: 920,
-          totalMedicos: 60,
-          tempoMedioEspera: 11,
-          totalFeedbackRuim: 8,
-          mediaFeedback: 8.2,
-          lembretesPendentes: 4,
-        };
-
-        const consultasAgendadasMock: ConsultasAgendadas[] = [
-          { consult_data: "2025-10-01", total_consultas: 22 },
-          { consult_data: "2025-10-02", total_consultas: 35 },
-          { consult_data: "2025-10-03", total_consultas: 28 },
-          { consult_data: "2025-10-04", total_consultas: 44 },
-          { consult_data: "2025-10-05", total_consultas: 42 },
-          { consult_data: "2025-10-06", total_consultas: 31 },
-          { consult_data: "2025-10-07", total_consultas: 50 },
-        ];
-
-        const tempoEsperaMock: TempoEspera[] = [
-          { consult_data: "2025-10-01", tempo_medio_espera: 10 },
-          { consult_data: "2025-10-02", tempo_medio_espera: 12 },
-          { consult_data: "2025-10-03", tempo_medio_espera: 9 },
-          { consult_data: "2025-10-04", tempo_medio_espera: 14 },
-          { consult_data: "2025-10-05", tempo_medio_espera: 16 },
-          { consult_data: "2025-10-06", tempo_medio_espera: 11 },
-          { consult_data: "2025-10-07", tempo_medio_espera: 8 },
-        ];
-
-        const consultasStatusMock: ConsultasPorStatus[] = [
-          { status_consulta: "Pendente", total: 65 },
-          { status_consulta: "Confirmada", total: 210 },
-          { status_consulta: "Concluída", total: 950 },
-          { status_consulta: "Cancelada", total: 115 },
-        ];
-
-        const consultasEspecialidadeMock: ConsultasPorEspecialidade[] = [
-          { espec_nome: "Cardiologia", total: 300 },
-          { espec_nome: "Pediatria", total: 180 },
-          { espec_nome: "Dermatologia", total: 100 },
-          { espec_nome: "Ortopedia", total: 200 },
-          { espec_nome: "Oftalmologia", total: 110 },
-        ];
-
-        // Simulando um pequeno delay
-        setTimeout(() => {
-          setIndicadores(indicadoresMock);
-          setConsultasAgendadas(consultasAgendadasMock);
-          setTempoEspera(tempoEsperaMock);
-          setConsultasStatus(consultasStatusMock);
-          setConsultasEspecialidade(consultasEspecialidadeMock);
-          setLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+    Promise.all([
+      fetch("/api/dashboard/indicadores").then((r) => r.json()),
+      fetch("/api/dashboard/consultas-agendadas").then((r) => r.json()),
+      fetch("/api/dashboard/tempo-medio-espera").then((r) => r.json()),
+      fetch("/api/dashboard/consultas-por-status").then((r) => r.json()),
+      fetch("/api/dashboard/consultas-por-especialidade").then((r) => r.json()),
+    ])
+      .then(([ind, agendadas, espera, status, espec]) => {
+        setIndicadores(ind);
+        setConsultasAgendadas(agendadas);
+        setTempoEspera(espera);
+        setConsultasStatus(status);
+        setConsultasEspecialidade(espec);
         setLoading(false);
-      }
-    }
-
-    fetchData();
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar dados:", err);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) {
@@ -205,7 +128,6 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // Alertas de exemplo
   const showAlertaFeedbackRuim = indicadores && indicadores.totalFeedbackRuim > 10;
   const showAlertaFeedbackBaixo = indicadores && indicadores.mediaFeedback < 5;
   const showAlertaLembretes = indicadores && indicadores.lembretesPendentes > 0;
@@ -222,7 +144,6 @@ const DashboardPage: React.FC = () => {
       <main className="p-4 space-y-8">
         <h1 className="text-3xl font-bold font-quicksand mb-2">Dashboard</h1>
 
-        {/* ALERTAS (condicionais) */}
         <div className="space-y-2">
           {showAlertaFeedbackRuim && (
             <div className="rounded-lg bg-pink-100 p-3 text-pink-800">
@@ -241,7 +162,6 @@ const DashboardPage: React.FC = () => {
           )}
         </div>
 
-        {/* 1) Linha de KPI Cards principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="shadow-lg">
             <CardHeader>
@@ -292,7 +212,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* 2) Linha de Gráficos: Consultas Agendadas (Line) e Tempo de Espera (Line) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
             <CardHeader>
@@ -301,14 +220,11 @@ const DashboardPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfigConsultas} className="h-72">
-                <LineChart
-                  data={consultasAgendadas}
-                  margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                >
+                <LineChart data={consultasAgendadas} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="consult_data" tick={{ fill: "#6b7280" }} />
                   <YAxis tick={{ fill: "#6b7280" }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltipContent />
                   <ChartLegendContent verticalAlign="top" />
                   <Line
                     type="monotone"
@@ -329,14 +245,11 @@ const DashboardPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfigTempoEspera} className="h-72">
-                <LineChart
-                  data={tempoEspera}
-                  margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                >
+                <LineChart data={tempoEspera} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="consult_data" tick={{ fill: "#6b7280" }} />
                   <YAxis tick={{ fill: "#6b7280" }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltipContent />
                   <ChartLegendContent verticalAlign="top" />
                   <Line
                     type="monotone"
@@ -351,7 +264,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* 3) Linha de Gráficos: Status (Pizza) e Especialidades (Barras) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
             <CardHeader>
@@ -359,26 +271,20 @@ const DashboardPage: React.FC = () => {
               <CardDescription>Visão de status das consultas</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={{}} className="h-72">
-                <PieChart>
-                  <Pie
-                    data={consultasStatus}
-                    dataKey="total"
-                    nameKey="status_consulta"
-                    outerRadius={100}
-                    label
-                  >
-                    {consultasStatus.map((item, idx) => {
-                      const fillColor =
-                        chartStatusColors[item.status_consulta] ||
-                        pastelColors[idx % pastelColors.length];
-                      return <Cell key={item.status_consulta} fill={fillColor} />;
-                    })}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegendContent verticalAlign="top" />
-                </PieChart>
-              </ChartContainer>
+              <PieChart width={300} height={300}>
+                <Pie
+                  data={consultasStatus}
+                  dataKey="total"
+                  nameKey="status_consulta"
+                  outerRadius={100}
+                  label
+                >
+                  {consultasStatus.map((item, idx) => {
+                    const fillColor = chartStatusColors[item.status_consulta] || "#ccc";
+                    return <Cell key={item.status_consulta} fill={fillColor} />;
+                  })}
+                </Pie>
+              </PieChart>
             </CardContent>
           </Card>
 
@@ -388,31 +294,21 @@ const DashboardPage: React.FC = () => {
               <CardDescription>Áreas mais demandadas</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={{}} className="h-72">
-                <BarChart
-                  data={consultasEspecialidade}
-                  margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="espec_nome" tick={{ fill: "#6b7280" }} />
-                  <YAxis tick={{ fill: "#6b7280" }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegendContent verticalAlign="top" />
-                  <Bar dataKey="total">
-                    {consultasEspecialidade.map((entry, index) => {
-                      const fillColor =
-                        chartEspecialidadeColors[entry.espec_nome] ||
-                        pastelColors[index % pastelColors.length];
-                      return <Cell key={entry.espec_nome} fill={fillColor} />;
-                    })}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
+              <BarChart width={300} height={300} data={consultasEspecialidade}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="espec_nome" tick={{ fill: "#6b7280" }} />
+                <YAxis tick={{ fill: "#6b7280" }} />
+                <Bar dataKey="total">
+                  {consultasEspecialidade.map((entry, idx) => {
+                    const fillColor = chartEspecialidadeColors[entry.espec_nome] || "#ccc";
+                    return <Cell key={idx} fill={fillColor} />;
+                  })}
+                </Bar>
+              </BarChart>
             </CardContent>
           </Card>
         </div>
 
-        {/* 4) Linha com mais 3 KPI Cards (ex: Feedbacks) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="shadow-lg">
             <CardHeader>
@@ -425,7 +321,6 @@ const DashboardPage: React.FC = () => {
               </p>
             </CardContent>
           </Card>
-
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Feedbacks Ruins</CardTitle>
@@ -437,7 +332,6 @@ const DashboardPage: React.FC = () => {
               </p>
             </CardContent>
           </Card>
-
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Lembretes Pendentes</CardTitle>

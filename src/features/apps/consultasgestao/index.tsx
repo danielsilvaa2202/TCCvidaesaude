@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,16 +53,39 @@ interface TopNavLink {
   disabled: boolean;
 }
 
+// Interfaces para listar as consultas e entidades
 interface Consultation {
-  id: number;
-  date: string;
-  time: string;      
-  doctor: string;
-  patient: string;
+  id_consulta: number;
+  consult_data: string;
+  consult_hora: string;
+  doctorId: number;
+  doctorName: string;
+  doctorCPF: string;
+  patientId: number;
+  patientName: string;
+  patientCPF: string;
+  specialtyId: number;
   specialty: string;
-  registrationDate: string;
 }
 
+// Para autocomplete e selects
+interface Patient {
+  id_paciente: number;
+  pac_nome: string;
+  pac_cpf: string;
+}
+
+interface Doctor {
+  id_medico: number;
+  id_profissional: number; // Campo adicionado para garantir o envio do id_profissional
+  prof_nome: string;
+  prof_cpf: string;
+}
+
+interface Specialty {
+  id_especialidade: number;
+  espec_nome: string;
+}
 
 const topNavLinks: TopNavLink[] = [
   { title: "Início", href: "/", isActive: true, disabled: false },
@@ -72,169 +94,377 @@ const topNavLinks: TopNavLink[] = [
 ];
 
 const ConsultasPage: React.FC = () => {
+  // Lista de consultas
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
 
-  const [consultations, setConsultations] = useState<Consultation[]>([
-    {
-      id: 1,
-      date: "2025-09-20",
-      time: "10:00",
-      doctor: "Dr. Daniel Silva",
-      patient: "Renata Boppre",
-      specialty: "Pediatria",
-      registrationDate: "2025-08-01",
-    },
-    {
-      id: 2,
-      date: "2025-09-21",
-      time: "14:30",
-      doctor: "Dra. Maria Souza",
-      patient: "João Silva",
-      specialty: "Cardiologia",
-      registrationDate: "2025-08-05",
-    },
-  ]);
-
+  // Filtros (campo de busca e selects)
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterSpecialty, setFilterSpecialty] = useState("");
-  const [filterDoctor, setFilterDoctor] = useState("");
-  const [filterPatient, setFilterPatient] = useState("");
+  const [filterSpecialty, setFilterSpecialty] = useState<number | "">("");
+  const [filterDoctor, setFilterDoctor] = useState<number | "">("");
+  const [filterPatient, setFilterPatient] = useState<number | "">("");
   const [registrationFrom, setRegistrationFrom] = useState("");
   const [registrationTo, setRegistrationTo] = useState("");
 
+  // Listas completas para povoar selects
+  const [allSpecialties, setAllSpecialties] = useState<Specialty[]>([]);
+  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+
+  // Estados do Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
 
+  // Campos para criar/editar
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
-  const [newDoctor, setNewDoctor] = useState("");
-  const [newPatient, setNewPatient] = useState("");
-  const [newSpecialty, setNewSpecialty] = useState("");
 
+  // Autocomplete de Médico
+  const [doctorSearch, setDoctorSearch] = useState("");
+  const [doctorResults, setDoctorResults] = useState<Doctor[]>([]);
+  // Aqui vamos armazenar o id_profissional, não id_medico
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
+  const [selectedDoctorName, setSelectedDoctorName] = useState("");
+
+  // Autocomplete de Paciente
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientResults, setPatientResults] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedPatientName, setSelectedPatientName] = useState("");
+  const [selectedPatientCPF, setSelectedPatientCPF] = useState("");
+
+  // Especialidade (select)
+  const [newSpecialtyId, setNewSpecialtyId] = useState<number | "">("");
+
+  // AlertDialog para excluir
   const [alertOpen, setAlertOpen] = useState(false);
-  const [consultToDelete, setConsultToDelete] = useState<Consultation | null>(
-    null
-  );
+  const [consultToDelete, setConsultToDelete] = useState<Consultation | null>(null);
 
+  // Carrega lista de consultas
+  useEffect(() => {
+    fetch("/api/consultas")
+      .then((res) => res.json())
+      .then((data) => {
+        const mapped: Consultation[] = data.map((c: any) => ({
+          id_consulta: c.id_consulta,
+          consult_data: c.consult_data,
+          consult_hora: c.consult_hora,
+          doctorId: c.id_profissional || c.id_medico,
+          doctorName: c.profissional_nome || c.prof_nome,
+          doctorCPF: c.prof_cpf || "",
+          patientId: c.id_paciente,
+          patientName: c.pac_nome || "",
+          patientCPF: c.pac_cpf || "",
+          specialtyId: c.id_especialidade || c.id_tipo_consulta || 0,
+          specialty: c.espec_nome || "",
+        }));
+        setConsultations(mapped);
+      })
+      .catch((err) => console.error("Erro ao carregar consultas:", err));
+  }, []);
+
+  // Carrega listas para filtros e selects
+  useEffect(() => {
+    // Especialidades
+    fetch("/api/especialidades")
+      .then((r) => r.json())
+      .then((data: Specialty[]) => setAllSpecialties(data))
+      .catch((err) => console.error(err));
+
+    // Médicos
+    fetch("/api/medicos")
+      .then((r) => r.json())
+      .then((data: any[]) => {
+        const mappedDocs: Doctor[] = data.map((d) => ({
+          id_medico: d.id_medico,
+          id_profissional: d.id_profissional, // use id_profissional vindo do backend
+          prof_nome: d.prof_nome,
+          prof_cpf: d.prof_cpf,
+        }));
+        setAllDoctors(mappedDocs);
+      })
+      .catch((err) => console.error(err));
+
+    // Pacientes
+    fetch("/api/pacientes")
+      .then((r) => r.json())
+      .then((data: Patient[]) => setAllPatients(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  // Ao abrir o dialog de edição
   useEffect(() => {
     if (dialogMode === "edit" && selectedConsultationId !== null) {
-      const c = consultations.find((c) => c.id === selectedConsultationId);
+      const c = consultations.find((x) => x.id_consulta === selectedConsultationId);
       if (c) {
-        setNewDate(c.date);
-        setNewTime(c.time);
-        setNewDoctor(c.doctor);
-        setNewPatient(c.patient);
-        setNewSpecialty(c.specialty);
+        setNewDate(c.consult_data);
+        setNewTime(c.consult_hora);
+
+        setSelectedDoctorId(c.doctorId);
+        setSelectedDoctorName(c.doctorName);
+        setDoctorSearch(c.doctorName || "");
+
+        setSelectedPatientId(c.patientId);
+        setSelectedPatientName(c.patientName);
+        setSelectedPatientCPF(c.patientCPF);
+        setPatientSearch(c.patientName || "");
+
+        setNewSpecialtyId(c.specialtyId || "");
       }
     }
   }, [dialogMode, selectedConsultationId, consultations]);
 
-  const clearForm = () => {
+  function clearForm() {
     setNewDate("");
     setNewTime("");
-    setNewDoctor("");
-    setNewPatient("");
-    setNewSpecialty("");
-  };
+    setDoctorSearch("");
+    setDoctorResults([]);
+    setSelectedDoctorId(null);
+    setSelectedDoctorName("");
+    setPatientSearch("");
+    setPatientResults([]);
+    setSelectedPatientId(null);
+    setSelectedPatientName("");
+    setSelectedPatientCPF("");
+    setNewSpecialtyId("");
+  }
 
-  const openCreateDialog = () => {
+  function openCreateDialog() {
     setDialogMode("create");
     setSelectedConsultationId(null);
     clearForm();
     setDialogOpen(true);
-  };
+  }
 
-  const openEditDialog = (id: number) => {
+  function openEditDialog(id: number) {
     setDialogMode("edit");
     setSelectedConsultationId(id);
     setDialogOpen(true);
-  };
+  }
 
-  const handleSubmitConsultation = (e: React.FormEvent) => {
+  // SUBMIT (create/update)
+  function handleSubmitConsultation(e: React.FormEvent) {
     e.preventDefault();
-    if (!newDate || !newTime || !newDoctor || !newPatient || !newSpecialty) {
+    if (!newDate || !newTime || !selectedDoctorId || !selectedPatientId || !newSpecialtyId) {
       alert("Preencha todos os campos.");
       return;
     }
 
+    const payload = {
+      id_paciente: selectedPatientId,
+      id_profissional: selectedDoctorId, // Enviando o id_profissional corretamente
+      id_tipo_consulta: Number(newSpecialtyId),
+      id_consult_status: 1,
+      consult_data: newDate,
+      consult_hora: newTime,
+    };
+
     if (dialogMode === "create") {
-      const newId = consultations.length
-        ? consultations[consultations.length - 1].id + 1
-        : 1;
-      const newConsult: Consultation = {
-        id: newId,
-        date: newDate,
-        time: newTime,
-        doctor: newDoctor,
-        patient: newPatient,
-        specialty: newSpecialty,
-        registrationDate: new Date().toISOString().split("T")[0],
-      };
-      setConsultations((prev) => [...prev, newConsult]);
+      // Criar
+      fetch("/api/consultas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao criar consulta");
+          return res.json();
+        })
+        .then((data) => {
+          const newId = data.id_consulta;
+          setConsultations((prev) => [
+            ...prev,
+            {
+              id_consulta: newId,
+              consult_data: newDate,
+              consult_hora: newTime,
+              doctorId: selectedDoctorId,
+              doctorName: selectedDoctorName,
+              doctorCPF: "", // Não é necessário exibir CPF do médico
+              patientId: selectedPatientId,
+              patientName: selectedPatientName,
+              patientCPF: selectedPatientCPF,
+              specialtyId: Number(newSpecialtyId),
+              specialty:
+                allSpecialties.find((s) => s.id_especialidade === Number(newSpecialtyId))
+                  ?.espec_nome || "",
+            },
+          ]);
+          setDialogOpen(false);
+          clearForm();
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao criar consulta");
+        });
     } else {
-      setConsultations((prev) =>
-        prev.map((c) =>
-          c.id === selectedConsultationId
-            ? {
-                ...c,
-                date: newDate,
-                time: newTime,
-                doctor: newDoctor,
-                patient: newPatient,
-                specialty: newSpecialty,
-              }
-            : c
-        )
-      );
+      // Editar
+      if (!selectedConsultationId) return;
+      fetch(`/api/consultas/${selectedConsultationId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao atualizar consulta");
+          return res.json();
+        })
+        .then(() => {
+          setConsultations((prev) =>
+            prev.map((c) =>
+              c.id_consulta === selectedConsultationId
+                ? {
+                    ...c,
+                    consult_data: newDate,
+                    consult_hora: newTime,
+                    doctorId: selectedDoctorId!,
+                    doctorName: selectedDoctorName,
+                    doctorCPF: "",
+                    patientId: selectedPatientId!,
+                    patientName: selectedPatientName,
+                    patientCPF: selectedPatientCPF,
+                    specialtyId: Number(newSpecialtyId),
+                    specialty:
+                      allSpecialties.find(
+                        (s) => s.id_especialidade === Number(newSpecialtyId)
+                      )?.espec_nome || "",
+                  }
+                : c
+            )
+          );
+          setDialogOpen(false);
+          clearForm();
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao atualizar consulta");
+        });
     }
+  }
 
-    setDialogOpen(false);
-    clearForm();
-  };
-
-  const openDeleteAlert = (consultation: Consultation) => {
+  // ALERT: Excluir
+  function openDeleteAlert(consultation: Consultation) {
     setConsultToDelete(consultation);
     setAlertOpen(true);
-  };
+  }
 
-  const handleConfirmDelete = () => {
-    if (consultToDelete) {
-      setConsultations((prev) => prev.filter((c) => c.id !== consultToDelete.id));
-    }
-    setAlertOpen(false);
-    setConsultToDelete(null);
-  };
+  function handleConfirmDelete() {
+    if (!consultToDelete) return;
+    fetch(`/api/consultas/${consultToDelete.id_consulta}`, {
+      method: "DELETE",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao excluir consulta");
+        setConsultations((prev) =>
+          prev.filter((x) => x.id_consulta !== consultToDelete.id_consulta)
+        );
+        setAlertOpen(false);
+        setConsultToDelete(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Não foi possível excluir consulta.");
+      });
+  }
 
-  const handleRegisterPresence = (id: number) => {
-    alert(`Presença registrada para a consulta ID ${id}.`);
-  };
+  // Registrar presença/ausência (exemplo)
+  function handleRegisterPresence(id: number) {
+    alert(`Presença registrada para ID ${id}`);
+  }
+  function handleRegisterAbsence(id: number) {
+    alert(`Ausência registrada para ID ${id}`);
+  }
 
-  const handleRegisterAbsence = (id: number) => {
-    alert(`Ausência registrada para a consulta ID ${id}.`);
-  };
-
+  // FILTRO no front-end
   const filteredConsultations = consultations.filter((c) => {
     const term = searchTerm.toLowerCase();
-
     const matchesSearch =
-      c.date.includes(term) ||
-      c.time.includes(term) ||
-      c.doctor.toLowerCase().includes(term) ||
-      c.patient.toLowerCase().includes(term) ||
+      c.consult_data.includes(term) ||
+      c.consult_hora.includes(term) ||
+      c.doctorName.toLowerCase().includes(term) ||
+      c.doctorCPF?.includes(term) ||
+      c.patientName.toLowerCase().includes(term) ||
+      c.patientCPF?.includes(term) ||
       c.specialty.toLowerCase().includes(term);
 
     const matchesSpecialty =
-      filterSpecialty === "" || c.specialty === filterSpecialty;
-
-    const matchesDoctor = filterDoctor === "" || c.doctor === filterDoctor;
-    const matchesPatient = filterPatient === "" || c.patient === filterPatient;
+      !filterSpecialty || c.specialtyId === filterSpecialty;
+    const matchesDoctor =
+      !filterDoctor || c.doctorId === filterDoctor;
+    const matchesPatient =
+      !filterPatient || c.patientId === filterPatient;
 
     const matchesDate =
-      (!registrationFrom || c.date >= registrationFrom) &&
-      (!registrationTo || c.date <= registrationTo);
+      (!registrationFrom || c.consult_data >= registrationFrom) &&
+      (!registrationTo || c.consult_data <= registrationTo);
 
     return matchesSearch && matchesSpecialty && matchesDoctor && matchesPatient && matchesDate;
   });
+
+  // AUTOCOMPLETE: médico
+  useEffect(() => {
+    if (doctorSearch.length < 2) {
+      setDoctorResults([]);
+      return;
+    }
+    const abort = new AbortController();
+    fetch(`/api/medicos?search=${doctorSearch}`, { signal: abort.signal })
+      .then((r) => r.json())
+      .then((data: any[]) => {
+        const docs: Doctor[] = data.map((d) => ({
+          id_medico: d.id_medico,
+          id_profissional: d.id_profissional,
+          prof_nome: d.prof_nome,
+          prof_cpf: d.prof_cpf,
+        }));
+        setDoctorResults(docs);
+      })
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        console.error(err);
+      });
+    return () => abort.abort();
+  }, [doctorSearch]);
+
+  function handleSelectDoctor(doc: Doctor) {
+    // Armazena o id_profissional para garantir que a FK seja correta
+    setSelectedDoctorId(doc.id_profissional);
+    setSelectedDoctorName(doc.prof_nome);
+    setDoctorSearch(doc.prof_nome);
+    setDoctorResults([]);
+  }
+
+  // AUTOCOMPLETE: paciente
+  useEffect(() => {
+    if (patientSearch.length < 2) {
+      setPatientResults([]);
+      return;
+    }
+    const abort = new AbortController();
+    fetch(`/api/pacientes?search=${patientSearch}`, { signal: abort.signal })
+      .then((r) => r.json())
+      .then((data: any[]) => {
+        const pacs: Patient[] = data.map((p) => ({
+          id_paciente: p.id_paciente,
+          pac_nome: p.pac_nome,
+          pac_cpf: p.pac_cpf,
+        }));
+        setPatientResults(pacs);
+      })
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        console.error(err);
+      });
+    return () => abort.abort();
+  }, [patientSearch]);
+
+  function handleSelectPatient(pac: Patient) {
+    setSelectedPatientId(pac.id_paciente);
+    setSelectedPatientName(pac.pac_nome);
+    setSelectedPatientCPF(pac.pac_cpf || "");
+    setPatientSearch(pac.pac_nome);
+    setPatientResults([]);
+  }
 
   return (
     <>
@@ -246,18 +476,15 @@ const ConsultasPage: React.FC = () => {
       </Header>
 
       <main className="p-4 space-y-6">
-        {/* Título */}
         <div className="flex flex-col sm:flex-row items-center justify-between">
           <h1 className="text-3xl font-bold font-quicksand">Consultas Agendadas</h1>
         </div>
 
-        {/* Filtros */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {/* Filtros à esquerda */}
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="text"
-              placeholder="Pesquisar..."
+              placeholder="Pesquisar... (nome, CPF, data...)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-48"
@@ -274,39 +501,56 @@ const ConsultasPage: React.FC = () => {
               onChange={(e) => setRegistrationTo(e.target.value)}
               className="w-auto"
             />
+
+            {/* Filtro Especialidade */}
             <select
               value={filterSpecialty}
-              onChange={(e) => setFilterSpecialty(e.target.value)}
+              onChange={(e) =>
+                setFilterSpecialty(e.target.value ? Number(e.target.value) : "")
+              }
               className="px-3 py-2 border rounded-md"
             >
-              <option value="">Especialidade</option>
-              <option value="Cardiologia">Cardiologia</option>
-              <option value="Dermatologia">Dermatologia</option>
-              <option value="Pediatria">Pediatria</option>
-              <option value="Clínica Geral">Clínica Geral</option>
-              <option value="Ginecologia">Ginecologia</option>
+              <option value="">Todas Especialidades</option>
+              {allSpecialties.map((s) => (
+                <option key={s.id_especialidade} value={s.id_especialidade}>
+                  {s.espec_nome}
+                </option>
+              ))}
             </select>
+
+            {/* Filtro Médico */}
             <select
               value={filterDoctor}
-              onChange={(e) => setFilterDoctor(e.target.value)}
+              onChange={(e) =>
+                setFilterDoctor(e.target.value ? Number(e.target.value) : "")
+              }
               className="px-3 py-2 border rounded-md"
             >
-              <option value="">Médico</option>
-              <option value="Dr. Daniel Silva">Dr. Daniel Silva</option>
-              <option value="Dra. Maria Souza">Dra. Maria Souza</option>
+              <option value="">Todos Médicos</option>
+              {allDoctors.map((d) => (
+                <option key={d.id_medico} value={d.id_medico}>
+                  {d.prof_nome}
+                </option>
+              ))}
             </select>
+
+            {/* Filtro Paciente */}
             <select
               value={filterPatient}
-              onChange={(e) => setFilterPatient(e.target.value)}
+              onChange={(e) =>
+                setFilterPatient(e.target.value ? Number(e.target.value) : "")
+              }
               className="px-3 py-2 border rounded-md"
             >
-              <option value="">Paciente</option>
-              <option value="Renata Boppre">Renata Boppre</option>
-              <option value="João Silva">João Silva</option>
+              <option value="">Todos Pacientes</option>
+              {allPatients.map((p) => (
+                <option key={p.id_paciente} value={p.id_paciente}>
+                  {p.pac_nome}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* Botão de cadastrar */}
           <div className="mt-2 sm:mt-0">
             <Button variant="default" onClick={openCreateDialog}>
               Cadastrar Consulta
@@ -314,12 +558,9 @@ const ConsultasPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Card de consultas */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-bold font-quicksand">
-              Consultas Cadastradas
-            </CardTitle>
+            <CardTitle className="text-lg font-bold font-quicksand">Consultas Cadastradas</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
               Abaixo está a lista de consultas do sistema.
             </CardDescription>
@@ -329,50 +570,40 @@ const ConsultasPage: React.FC = () => {
               <Table className="w-full table-auto border-separate border-spacing-0 text-sm">
                 <TableHeader>
                   <TableRow className="border-b">
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Data
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Hora
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Médico
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Paciente
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Especialidade
-                    </TableHead>
-                    <TableHead className="px-2 py-2 text-left font-semibold whitespace-nowrap">
-                      Ações
-                    </TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Hora</TableHead>
+                    <TableHead>Médico</TableHead>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Especialidade</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredConsultations.map((c) => (
                     <TableRow
-                      key={c.id}
+                      key={c.id_consulta}
                       className="border-b last:border-0 even:bg-muted/25 hover:bg-muted/50"
                     >
-                      <TableCell className="px-2 py-2 align-middle whitespace-nowrap">
-                        {new Date(c.date).toLocaleDateString("pt-BR")}
+                      <TableCell>
+                        {new Date(c.consult_data).toLocaleDateString("pt-BR")}
                       </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        {c.time}
+                      <TableCell>{c.consult_hora}</TableCell>
+                      <TableCell>{c.doctorName}</TableCell>
+                      <TableCell>
+                        {c.patientName}
+                        <br />
+                        <small className="text-xs text-muted-foreground">
+                          CPF: {c.patientCPF}
+                        </small>
                       </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        {c.doctor}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        {c.patient}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
-                        {c.specialty}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 align-middle">
+                      <TableCell>{c.specialty}</TableCell>
+                      <TableCell>
                         <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(c.id)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(c.id_consulta)}
+                          >
                             Editar
                           </Button>
                           <AlertDialog>
@@ -386,16 +617,13 @@ const ConsultasPage: React.FC = () => {
                               </Button>
                             </AlertDialogTrigger>
                           </AlertDialog>
-                          <Button
-                            size="sm"
-                            onClick={() => handleRegisterPresence(c.id)}
-                          >
+                          <Button size="sm" onClick={() => handleRegisterPresence(c.id_consulta)}>
                             Presença
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleRegisterAbsence(c.id)}
+                            onClick={() => handleRegisterAbsence(c.id_consulta)}
                           >
                             Ausência
                           </Button>
@@ -405,10 +633,7 @@ const ConsultasPage: React.FC = () => {
                   ))}
                   {filteredConsultations.length === 0 && (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="px-2 py-4 text-center text-muted-foreground"
-                      >
+                      <TableCell colSpan={6} className="px-2 py-4 text-center text-muted-foreground">
                         Nenhuma consulta encontrada.
                       </TableCell>
                     </TableRow>
@@ -423,75 +648,132 @@ const ConsultasPage: React.FC = () => {
         </Card>
       </main>
 
-      {/* Dialog: criar/editar consulta */}
+      {/* Dialog CREATE/EDIT */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[700px] w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {dialogMode === "create" ? "Cadastrar Consulta" : "Editar Consulta"}
-            </DialogTitle>
-            <DialogDescription>
-              Preencha todos os campos obrigatórios.
-            </DialogDescription>
+            <DialogTitle>{dialogMode === "create" ? "Cadastrar Consulta" : "Editar Consulta"}</DialogTitle>
+            <DialogDescription>Preencha todos os campos obrigatórios.</DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleSubmitConsultation}>
             <div className="grid gap-4 py-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {/* Data */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="date">Data *</Label>
+                <Label>Data *</Label>
                 <Input
                   type="date"
-                  id="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   required
                 />
               </div>
+
               {/* Hora */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="time">Hora *</Label>
+                <Label>Hora *</Label>
                 <Input
                   type="time"
-                  id="time"
                   value={newTime}
                   onChange={(e) => setNewTime(e.target.value)}
                   required
                 />
               </div>
-              {/* Médico */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="doctor">Médico *</Label>
+
+              {/* Autocomplete Médico */}
+              <div className="flex flex-col gap-1 relative">
+                <Label>Médico *</Label>
                 <Input
                   type="text"
-                  id="doctor"
-                  value={newDoctor}
-                  onChange={(e) => setNewDoctor(e.target.value)}
+                  value={doctorSearch}
+                  onChange={(e) => {
+                    setDoctorSearch(e.target.value);
+                    if (!e.target.value) {
+                      setSelectedDoctorId(null);
+                      setSelectedDoctorName("");
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setDoctorResults([]), 200)}
+                  placeholder="Digite nome/CPF do médico..."
                   required
                 />
+                {doctorResults.length > 0 && doctorSearch.length >= 2 && (
+                  <div className="absolute top-full left-0 w-full bg-white border z-10">
+                    {doctorResults.map((doc) => (
+                      <div
+                        key={doc.id_medico}
+                        className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+                        onMouseDown={() => handleSelectDoctor(doc)}
+                      >
+                        {doc.prof_nome}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {/* Paciente */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="patient">Paciente *</Label>
+
+              {/* Autocomplete Paciente */}
+              <div className="flex flex-col gap-1 relative">
+                <Label>Paciente *</Label>
                 <Input
                   type="text"
-                  id="patient"
-                  value={newPatient}
-                  onChange={(e) => setNewPatient(e.target.value)}
+                  value={patientSearch}
+                  onChange={(e) => {
+                    setPatientSearch(e.target.value);
+                    if (!e.target.value) {
+                      setSelectedPatientId(null);
+                      setSelectedPatientName("");
+                      setSelectedPatientCPF("");
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setPatientResults([]), 200)}
+                  placeholder="Digite nome/CPF do paciente..."
                   required
                 />
+                {patientResults.length > 0 && patientSearch.length >= 2 && (
+                  <div className="absolute top-full left-0 w-full bg-white border z-10">
+                    {patientResults.map((p) => (
+                      <div
+                        key={p.id_paciente}
+                        className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+                        onMouseDown={() => handleSelectPatient(p)}
+                      >
+                        {p.pac_nome} - CPF: {p.pac_cpf}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* CPF do Paciente (somente leitura) */}
+              {selectedPatientCPF && (
+                <div className="flex flex-col gap-1">
+                  <Label>CPF do Paciente</Label>
+                  <Input type="text" readOnly value={selectedPatientCPF} />
+                </div>
+              )}
+
               {/* Especialidade */}
               <div className="flex flex-col gap-1">
-                <Label htmlFor="specialty">Especialidade *</Label>
-                <Input
-                  type="text"
-                  id="specialty"
-                  value={newSpecialty}
-                  onChange={(e) => setNewSpecialty(e.target.value)}
+                <Label>Especialidade *</Label>
+                <select
+                  className="px-3 py-2 border rounded-md"
+                  value={newSpecialtyId}
+                  onChange={(e) =>
+                    setNewSpecialtyId(e.target.value ? Number(e.target.value) : "")
+                  }
                   required
-                />
+                >
+                  <option value="">Selecione...</option>
+                  {allSpecialties.map((s) => (
+                    <option key={s.id_especialidade} value={s.id_especialidade}>
+                      {s.espec_nome}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
             <DialogFooter>
               <Button type="submit">
                 {dialogMode === "create" ? "Cadastrar" : "Salvar"}
@@ -504,21 +786,18 @@ const ConsultasPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* AlertDialog: excluir consulta */}
+      {/* AlertDialog para excluir */}
       <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Consulta</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta consulta? Não poderá ser
-              desfeita.
+              Tem certeza que deseja excluir esta consulta? Não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              Excluir
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
