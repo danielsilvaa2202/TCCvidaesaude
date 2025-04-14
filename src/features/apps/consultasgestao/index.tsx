@@ -83,8 +83,8 @@ interface Doctor {
 }
 
 interface Specialty {
-  id_especialidade: number;
-  espec_nome: string;
+  id_tipo_consulta: number;
+  tipoconsulta_nome: string;
 }
 
 const topNavLinks: TopNavLink[] = [
@@ -155,9 +155,10 @@ const ConsultasPage: React.FC = () => {
           patientId: c.id_paciente,
           patientName: c.pac_nome || "",
           patientCPF: c.pac_cpf || "",
-          specialtyId: c.id_especialidade || c.id_tipo_consulta || 0,
-          specialty: c.espec_nome || "",
+          specialtyId: c.id_tipo_consulta,
+          specialty: c.tipoconsulta_nome || "",
         }));
+             
         setConsultations(mapped);
       })
       .catch((err) => console.error("Erro ao carregar consultas:", err));
@@ -166,10 +167,11 @@ const ConsultasPage: React.FC = () => {
   // Carrega listas para filtros e selects
   useEffect(() => {
     // Especialidades
-    fetch("/api/especialidades")
-      .then((r) => r.json())
-      .then((data: Specialty[]) => setAllSpecialties(data))
-      .catch((err) => console.error(err));
+    fetch("/api/tiposconsulta")
+  .then((r) => r.json())
+  .then((data: Specialty[]) => setAllSpecialties(data))
+  .catch((err) => console.error(err));
+
 
     // Médicos
     fetch("/api/medicos")
@@ -286,8 +288,8 @@ const ConsultasPage: React.FC = () => {
               patientCPF: selectedPatientCPF,
               specialtyId: Number(newSpecialtyId),
               specialty:
-                allSpecialties.find((s) => s.id_especialidade === Number(newSpecialtyId))
-                  ?.espec_nome || "",
+                allSpecialties.find((s) => s.id_tipo_consulta === Number(newSpecialtyId))
+                  ?.tipoconsulta_nome || "",
             },
           ]);
           setDialogOpen(false);
@@ -326,8 +328,8 @@ const ConsultasPage: React.FC = () => {
                     specialtyId: Number(newSpecialtyId),
                     specialty:
                       allSpecialties.find(
-                        (s) => s.id_especialidade === Number(newSpecialtyId)
-                      )?.espec_nome || "",
+                        (s) => s.id_tipo_consulta === Number(newSpecialtyId)
+                      )?.tipoconsulta_nome || "",
                   }
                 : c
             )
@@ -504,19 +506,20 @@ const ConsultasPage: React.FC = () => {
 
             {/* Filtro Especialidade */}
             <select
-              value={filterSpecialty}
-              onChange={(e) =>
-                setFilterSpecialty(e.target.value ? Number(e.target.value) : "")
-              }
-              className="px-3 py-2 border rounded-md"
-            >
-              <option value="">Todas Especialidades</option>
-              {allSpecialties.map((s) => (
-                <option key={s.id_especialidade} value={s.id_especialidade}>
-                  {s.espec_nome}
-                </option>
-              ))}
-            </select>
+  value={filterSpecialty}
+  onChange={(e) =>
+    setFilterSpecialty(e.target.value ? Number(e.target.value) : "")
+  }
+  className="px-3 py-2 border rounded-md"
+>
+  <option value="">Todas Especialidades</option>
+  {allSpecialties.map((s) => (
+    <option key={s.id_tipo_consulta} value={s.id_tipo_consulta}>
+      {s.tipoconsulta_nome}
+    </option>
+  ))}
+</select>
+
 
             {/* Filtro Médico */}
             <select
@@ -757,20 +760,21 @@ const ConsultasPage: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <Label>Especialidade *</Label>
                 <select
-                  className="px-3 py-2 border rounded-md"
-                  value={newSpecialtyId}
-                  onChange={(e) =>
-                    setNewSpecialtyId(e.target.value ? Number(e.target.value) : "")
-                  }
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  {allSpecialties.map((s) => (
-                    <option key={s.id_especialidade} value={s.id_especialidade}>
-                      {s.espec_nome}
-                    </option>
-                  ))}
-                </select>
+  className="px-3 py-2 border rounded-md"
+  value={newSpecialtyId}
+  onChange={(e) =>
+    setNewSpecialtyId(e.target.value ? Number(e.target.value) : "")
+  }
+  required
+>
+  <option value="">Selecione...</option>
+  {allSpecialties.map((s) => (
+    <option key={s.id_tipo_consulta} value={s.id_tipo_consulta}>
+      {s.tipoconsulta_nome}
+    </option>
+  ))}
+</select>
+
               </div>
             </div>
 

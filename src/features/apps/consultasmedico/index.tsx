@@ -111,7 +111,7 @@ const ConsultaMedicoPage: React.FC = () => {
       .then((data: any[]) => {
         const mapped: Consultation[] = data.map((c: any) => ({
           id_consulta: c.id_consulta,
-          id_profissional: c.id_profissional,
+          id_profissional: c.id_medico, // <-- ESTE é o ID real do médico
           id_paciente: c.id_paciente,
           consult_data: c.consult_data,
           consult_hora: c.consult_hora,
