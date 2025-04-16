@@ -601,8 +601,9 @@ export default function ProfissionaisPage() {
                       <TableCell>{p.prof_cpf}</TableCell>
                       <TableCell>{p.cargo_nome}</TableCell>
                       <TableCell>
-                        {new Date(p.prof_data_nascimento).toLocaleDateString("pt-BR")}
-                      </TableCell>
+  {new Date(p.prof_data_nascimento).toISOString().substring(0, 10).split("-").reverse().join("/")}
+</TableCell>
+
                       <TableCell>{p.prof_email}</TableCell>
                       <TableCell>{p.prof_telefone}</TableCell>
                       <TableCell>
@@ -624,7 +625,7 @@ export default function ProfissionaisPage() {
                                   setAlertOpen(true);
                                 }}
                               >
-                                Excluir
+                                Inativar
                               </Button>
                             </AlertDialogTrigger>
                           </AlertDialog>
@@ -804,7 +805,7 @@ export default function ProfissionaisPage() {
                           onClick={() => handleDeleteCargo(c.id_cargo)}
                           className="ml-2"
                         >
-                          Excluir
+                          Inativar
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -49,6 +49,9 @@ const AuthenticatedConsultasmedicoIndexLazyImport = createFileRoute(
 const AuthenticatedConsultasgestaoIndexLazyImport = createFileRoute(
   '/_authenticated/consultasgestao/',
 )()
+const AuthenticatedAuxiliaresadminIndexLazyImport = createFileRoute(
+  '/_authenticated/auxiliares_admin/',
+)()
 
 // Create/Update Routes
 
@@ -211,6 +214,17 @@ const AuthenticatedConsultasgestaoIndexLazyRoute =
     ),
   )
 
+const AuthenticatedAuxiliaresadminIndexLazyRoute =
+  AuthenticatedAuxiliaresadminIndexLazyImport.update({
+    id: '/auxiliares_admin/',
+    path: '/auxiliares_admin/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/auxiliares_admin/index.lazy').then(
+      (d) => d.Route,
+    ),
+  )
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -306,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexImport
       parentRoute: typeof AuthenticatedRouteImport
     }
+    '/_authenticated/auxiliares_admin/': {
+      id: '/_authenticated/auxiliares_admin/'
+      path: '/auxiliares_admin'
+      fullPath: '/auxiliares_admin'
+      preLoaderRoute: typeof AuthenticatedAuxiliaresadminIndexLazyImport
+      parentRoute: typeof AuthenticatedRouteImport
+    }
     '/_authenticated/consultasgestao/': {
       id: '/_authenticated/consultasgestao/'
       path: '/consultasgestao'
@@ -355,6 +376,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAuxiliaresadminIndexLazyRoute: typeof AuthenticatedAuxiliaresadminIndexLazyRoute
   AuthenticatedConsultasgestaoIndexLazyRoute: typeof AuthenticatedConsultasgestaoIndexLazyRoute
   AuthenticatedConsultasmedicoIndexLazyRoute: typeof AuthenticatedConsultasmedicoIndexLazyRoute
   AuthenticatedDashboardinicialIndexLazyRoute: typeof AuthenticatedDashboardinicialIndexLazyRoute
@@ -365,6 +387,8 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAuxiliaresadminIndexLazyRoute:
+    AuthenticatedAuxiliaresadminIndexLazyRoute,
   AuthenticatedConsultasgestaoIndexLazyRoute:
     AuthenticatedConsultasgestaoIndexLazyRoute,
   AuthenticatedConsultasmedicoIndexLazyRoute:
@@ -393,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404LazyRoute
   '/503': typeof errors503LazyRoute
   '/': typeof AuthenticatedIndexRoute
+  '/auxiliares_admin': typeof AuthenticatedAuxiliaresadminIndexLazyRoute
   '/consultasgestao': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
@@ -413,6 +438,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404LazyRoute
   '/503': typeof errors503LazyRoute
   '/': typeof AuthenticatedIndexRoute
+  '/auxiliares_admin': typeof AuthenticatedAuxiliaresadminIndexLazyRoute
   '/consultasgestao': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/consultasmedico': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/dashboard_inicial': typeof AuthenticatedDashboardinicialIndexLazyRoute
@@ -436,6 +462,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500LazyRoute
   '/(errors)/503': typeof errors503LazyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/auxiliares_admin/': typeof AuthenticatedAuxiliaresadminIndexLazyRoute
   '/_authenticated/consultasgestao/': typeof AuthenticatedConsultasgestaoIndexLazyRoute
   '/_authenticated/consultasmedico/': typeof AuthenticatedConsultasmedicoIndexLazyRoute
   '/_authenticated/dashboard_inicial/': typeof AuthenticatedDashboardinicialIndexLazyRoute
@@ -459,6 +486,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/503'
     | '/'
+    | '/auxiliares_admin'
     | '/consultasgestao'
     | '/consultasmedico'
     | '/dashboard_inicial'
@@ -478,6 +506,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/503'
     | '/'
+    | '/auxiliares_admin'
     | '/consultasgestao'
     | '/consultasmedico'
     | '/dashboard_inicial'
@@ -499,6 +528,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/_authenticated/auxiliares_admin/'
     | '/_authenticated/consultasgestao/'
     | '/_authenticated/consultasmedico/'
     | '/_authenticated/dashboard_inicial/'
@@ -566,6 +596,7 @@ export const routeTree = rootRoute
       "filePath": "_authenticated/route.tsx",
       "children": [
         "/_authenticated/",
+        "/_authenticated/auxiliares_admin/",
         "/_authenticated/consultasgestao/",
         "/_authenticated/consultasmedico/",
         "/_authenticated/dashboard_inicial/",
@@ -609,6 +640,10 @@ export const routeTree = rootRoute
     },
     "/_authenticated/": {
       "filePath": "_authenticated/index.tsx",
+      "parent": "/_authenticated"
+    },
+    "/_authenticated/auxiliares_admin/": {
+      "filePath": "_authenticated/auxiliares_admin/index.lazy.tsx",
       "parent": "/_authenticated"
     },
     "/_authenticated/consultasgestao/": {

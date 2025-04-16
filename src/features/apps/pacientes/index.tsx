@@ -172,17 +172,17 @@ const PacientesPage: React.FC = () => {
     }
 
     const payload = {
-      cpf,
-      name,
-      email,
-      phone,
-      birthDate,
-      gender,
-      cep,
-      address,
-      city,
-      state,
-    };
+      pac_cpf: cpf,
+      pac_nome: name,
+      pac_email: email,
+      pac_telefone: phone,
+      pac_data_nascimento: birthDate,
+      pac_genero: gender,
+      pac_cep: cep,
+      pac_endereco: address,
+      pac_cidade: city,
+      pac_estado: state
+    }
 
     if (dialogMode === "create") {
       fetch("/api/pacientes", {
@@ -235,14 +235,14 @@ const PacientesPage: React.FC = () => {
     if (!patientToDelete) return;
     fetch(`/api/pacientes/${patientToDelete.id_paciente}`, { method: "DELETE" })
       .then((res) => {
-        if (!res.ok) throw new Error("Erro ao excluir/inativar paciente");
+        if (!res.ok) throw new Error("Erro ao inativar paciente");
         fetchPatients();
         setAlertOpen(false);
         setPatientToDelete(null);
       })
       .catch((err) => {
         console.error(err);
-        alert("Erro ao excluir/inativar paciente");
+        alert("Erro ao inativar paciente");
       });
   };
 
@@ -327,8 +327,9 @@ const PacientesPage: React.FC = () => {
                       <TableCell>{p.pac_nome}</TableCell>
                       <TableCell>{p.pac_cpf}</TableCell>
                       <TableCell>
-                        {new Date(p.pac_data_nascimento).toLocaleDateString("pt-BR")}
-                      </TableCell>
+  {new Date(p.pac_data_nascimento).toISOString().substring(0, 10).split("-").reverse().join("/")}
+</TableCell>
+
                       <TableCell>{p.pac_email}</TableCell>
                       <TableCell>{p.pac_telefone}</TableCell>
                       <TableCell>{p.pac_endereco}</TableCell>
@@ -347,7 +348,7 @@ const PacientesPage: React.FC = () => {
                                 variant="destructive"
                                 onClick={() => openDeleteAlert(p)}
                               >
-                                Excluir
+                                Inativar
                               </Button>
                             </AlertDialogTrigger>
                           </AlertDialog>
@@ -481,14 +482,14 @@ const PacientesPage: React.FC = () => {
       <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir/Inativar Paciente?</AlertDialogTitle>
+            <AlertDialogTitle>Inativar Paciente?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete}>Inativar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

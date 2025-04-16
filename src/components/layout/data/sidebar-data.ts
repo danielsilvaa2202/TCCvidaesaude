@@ -58,8 +58,12 @@ export const sidebarData: SidebarData = {
           icon: IconSettings,
           items: [
             {
-              title: 'Gestão',
+              title: 'Gestão Profissionais',
               url: '/profissionais',
+            },
+            {
+              title: 'Gestão Módulos',
+              url: '/auxiliares_admin',
             },
           ],
         },
