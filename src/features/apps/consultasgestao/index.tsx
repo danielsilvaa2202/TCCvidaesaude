@@ -1,3 +1,5 @@
+// frontend/src/app/consultasgestao/page.tsx
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -21,15 +23,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogTrigger,
   AlertDialogContent,
@@ -40,8 +33,16 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
@@ -100,8 +101,7 @@ const topNavLinks: TopNavLink[] = [
 
 const ITEMS_PER_PAGE = 10;
 
-const ConsultasPage: React.FC = () => {
-  // Dados e filtros
+export default function ConsultasPage() {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [allStatuses, setAllStatuses] = useState<Status[]>([]);
   const [allSpecialties, setAllSpecialties] = useState<Specialty[]>([]);
@@ -110,47 +110,45 @@ const ConsultasPage: React.FC = () => {
   const [registrationTo, setRegistrationTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Diálogo criar/editar/remarcar
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | "reschedule">("create");
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
 
-  // Autocomplete médico
   const [doctorSearch, setDoctorSearch] = useState("");
   const [doctorResults, setDoctorResults] = useState<Doctor[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
 
-  // Autocomplete paciente
   const [patientSearch, setPatientSearch] = useState("");
   const [patientResults, setPatientResults] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedPatientCPF, setSelectedPatientCPF] = useState("");
 
-  // Fetch inicial: status e especialidades
+  // load statuses and specialties once
   useEffect(() => {
     fetch("/api/statusconsulta")
-      .then((r) => r.json())
+      .then(r => r.json())
       .then((data: Status[]) => setAllStatuses(data))
       .catch(console.error);
 
     fetch("/api/tiposconsulta")
-      .then((r) => r.json())
+      .then(r => r.json())
       .then((data: Specialty[]) => setAllSpecialties(data))
       .catch(console.error);
   }, []);
 
-  // Fetch de consultas com filtros de data
+  // single function to fetch and map consultations
   const fetchConsultations = () => {
     const params = new URLSearchParams();
     if (registrationFrom) params.append("data_ini", registrationFrom);
     if (registrationTo) params.append("data_fim", registrationTo);
+
     fetch(`/api/consultas?${params}`)
-      .then((r) => r.json())
+      .then(r => r.json())
       .then((data: any[]) => {
         setConsultations(
-          data.map((c) => ({
+          data.map(c => ({
             id_consulta: c.id_consulta,
             consult_data: c.consult_data,
             consult_hora: c.consult_hora,
@@ -171,11 +169,18 @@ const ConsultasPage: React.FC = () => {
       .catch(console.error);
   };
 
+  // reload on mount, on filter change, every 15s, and on window focus
   useEffect(() => {
     fetchConsultations();
+    const iv = setInterval(fetchConsultations, 15000);
+    window.addEventListener("focus", fetchConsultations);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("focus", fetchConsultations);
+    };
   }, [registrationFrom, registrationTo]);
 
-  // Preenche formulário para editar/remarcar
+  // form helpers
   const prefillForm = (c: Consultation) => {
     setSelectedConsultationId(c.id_consulta);
     setNewDate(c.consult_data);
@@ -215,7 +220,7 @@ const ConsultasPage: React.FC = () => {
     setDialogOpen(true);
   };
 
-  // Submit criar / editar / remarcar
+  // submit create/edit/reschedule
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDate || !newTime || !selectedDoctorId || !selectedPatientId) {
@@ -223,35 +228,32 @@ const ConsultasPage: React.FC = () => {
     }
     let url = "/api/consultas";
     let method: "POST" | "PUT" = "POST";
-    const base = {
+    const payload: any = {
       id_paciente: selectedPatientId,
       id_profissional: selectedDoctorId,
       consult_data: newDate,
       consult_hora: newTime,
       id_tipo_consulta:
-        consultations.find((c) => c.id_consulta === selectedConsultationId)
+        consultations.find(c => c.id_consulta === selectedConsultationId)
           ?.specialtyId,
-    } as any;
-
+    };
     if (dialogMode === "edit") {
-      base.id_consult_status =
-        consultations.find((c) => c.id_consulta === selectedConsultationId)
-          ?.statusId;
+      payload.id_consult_status = consultations.find(c => c.id_consulta === selectedConsultationId)
+        ?.statusId;
       url = `/api/consultas/${selectedConsultationId}`;
       method = "PUT";
     }
     if (dialogMode === "reschedule") {
-      base.id_consult_status = 5; // Remarcada
+      payload.id_consult_status = 5;
       url = `/api/consultas/${selectedConsultationId}`;
       method = "PUT";
     }
-
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(base),
+      body: JSON.stringify(payload),
     })
-      .then((r) => {
+      .then(r => {
         if (!r.ok) throw new Error("Erro no servidor");
         return r.json();
       })
@@ -260,55 +262,53 @@ const ConsultasPage: React.FC = () => {
         clearForm();
         fetchConsultations();
       })
-      .catch((err) => {
+      .catch(err => {
         console.error(err);
         alert("Erro ao salvar.");
       });
   };
 
-  // Atualiza status (presença, ausência, cancelada)
+  // change status (including concluded = 2)
   const handleStatusChange = (id: number, statusId: number) => {
     fetch(`/api/consultas/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id_consult_status: statusId }),
     })
-      .then((r) => {
+      .then(r => {
         if (!r.ok) throw new Error("Erro ao atualizar status");
         return r.json();
       })
-      .then((json) => {
-        // atualiza localmente
-        setConsultations((prev) =>
-          prev.map((c) =>
+      .then(() => {
+        setConsultations(prev =>
+          prev.map(c =>
             c.id_consulta === id
               ? {
                   ...c,
                   statusId,
                   status:
-                    allStatuses.find((s) => s.id_consult_status === statusId)
+                    allStatuses.find(s => s.id_consult_status === statusId)
                       ?.status_consulta || c.status,
                 }
               : c
           )
         );
       })
-      .catch((err) => {
+      .catch(err => {
         console.error(err);
         alert("Falha ao mudar status.");
       });
   };
-  
 
-  // Autocomplete Médico
+  // autocomplete médico
   useEffect(() => {
     if (doctorSearch.length < 2) return setDoctorResults([]);
     const ctrl = new AbortController();
     fetch(`/api/medicos?search=${doctorSearch}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((data: any[]) =>
+      .then(r => r.json())
+      .then(data =>
         setDoctorResults(
-          data.map((d) => ({
+          data.map((d: any) => ({
             id_medico: d.id_medico,
             id_profissional: d.id_profissional,
             prof_nome: d.prof_nome,
@@ -316,7 +316,7 @@ const ConsultasPage: React.FC = () => {
           }))
         )
       )
-      .catch((e) => e.name !== "AbortError" && console.error(e));
+      .catch(e => e.name !== "AbortError" && console.error(e));
     return () => ctrl.abort();
   }, [doctorSearch]);
   const selectDoctor = (d: Doctor) => {
@@ -325,22 +325,22 @@ const ConsultasPage: React.FC = () => {
     setDoctorResults([]);
   };
 
-  // Autocomplete Paciente
+  // autocomplete paciente
   useEffect(() => {
     if (patientSearch.length < 2) return setPatientResults([]);
     const ctrl = new AbortController();
     fetch(`/api/pacientes?search=${patientSearch}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((data: any[]) =>
+      .then(r => r.json())
+      .then(data =>
         setPatientResults(
-          data.map((p) => ({
+          data.map((p: any) => ({
             id_paciente: p.id_paciente,
             pac_nome: p.pac_nome,
             pac_cpf: p.pac_cpf,
           }))
         )
       )
-      .catch((e) => e.name !== "AbortError" && console.error(e));
+      .catch(e => e.name !== "AbortError" && console.error(e));
     return () => ctrl.abort();
   }, [patientSearch]);
   const selectPatient = (p: Patient) => {
@@ -350,8 +350,8 @@ const ConsultasPage: React.FC = () => {
     setPatientResults([]);
   };
 
-  // Filtragem geral
-  const filtered = consultations.filter((c) => {
+  // filter & paginate
+  const filtered = consultations.filter(c => {
     const t = searchTerm.toLowerCase();
     return (
       c.consult_data.includes(t) ||
@@ -362,18 +362,17 @@ const ConsultasPage: React.FC = () => {
       c.status.toLowerCase().includes(t)
     );
   });
-
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paged = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Export CSV
+  // export CSV
   const handleExport = () => {
     const headers = ["Data", "Hora", "Médico", "Paciente", "Especialidade", "Status"];
-    const rows = filtered.map((c) => [
-      new Date(c.consult_data).toLocaleDateString("pt-BR", { timeZone: "UTC" }),
+    const rows = filtered.map(c => [
+      new Date(c.consult_data).toLocaleDateString("pt-BR"),
       c.consult_hora,
       c.doctorName,
       c.patientName,
@@ -382,7 +381,7 @@ const ConsultasPage: React.FC = () => {
     ]);
     const csv =
       "\uFEFF" +
-      [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\r\n");
+      [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -402,14 +401,14 @@ const ConsultasPage: React.FC = () => {
       <main className="p-4 space-y-6">
         <h1 className="text-3xl font-bold">Consultas Agendadas</h1>
 
-        {/* Filtros de data e busca */}
+        {/* filtros */}
         <div className="flex flex-wrap gap-2 items-end">
           <div>
             <Label>De</Label>
             <Input
               type="date"
               value={registrationFrom}
-              onChange={(e) => setRegistrationFrom(e.target.value)}
+              onChange={e => setRegistrationFrom(e.target.value)}
             />
           </div>
           <div>
@@ -417,7 +416,7 @@ const ConsultasPage: React.FC = () => {
             <Input
               type="date"
               value={registrationTo}
-              onChange={(e) => setRegistrationTo(e.target.value)}
+              onChange={e => setRegistrationTo(e.target.value)}
             />
           </div>
           <div>
@@ -426,7 +425,7 @@ const ConsultasPage: React.FC = () => {
               type="text"
               placeholder="nome, data, médico, status..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="ml-auto flex gap-2">
@@ -437,7 +436,7 @@ const ConsultasPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabela */} 
+        {/* tabela */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Consultas</CardTitle>
@@ -460,12 +459,11 @@ const ConsultasPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paged.map((c) => (
+                  {paged.map(c => (
                     <TableRow key={c.id_consulta}>
                       <TableCell>
-  {new Date(c.consult_data).toISOString().substring(0, 10).split("-").reverse().join("/")}
-</TableCell>
-
+                        {new Date(c.consult_data).toLocaleDateString("pt-BR")}
+                      </TableCell>
                       <TableCell>{c.consult_hora}</TableCell>
                       <TableCell>{c.doctorName}</TableCell>
                       <TableCell>
@@ -479,10 +477,12 @@ const ConsultasPage: React.FC = () => {
                       <TableCell>
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
-                            c.statusId === 5
-                              ? "bg-yellow-200"
+                            c.statusId === 2
+                              ? "bg-gray-200"
                               : c.statusId === 4
                               ? "bg-green-200"
+                              : c.statusId === 5
+                              ? "bg-yellow-200"
                               : c.statusId === 6
                               ? "bg-red-200"
                               : "bg-blue-200"
@@ -527,7 +527,9 @@ const ConsultasPage: React.FC = () => {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleStatusChange(c.id_consulta, 3)}>
+                              <AlertDialogAction
+                                onClick={() => handleStatusChange(c.id_consulta, 3)}
+                              >
                                 Excluir
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -548,11 +550,11 @@ const ConsultasPage: React.FC = () => {
               </Table>
             </ScrollArea>
 
-            {/* Paginação */}
+            {/* paginação */}
             <div className="flex justify-center gap-2 mt-2">
               <Button
                 size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
               >
                 Anterior
@@ -572,7 +574,7 @@ const ConsultasPage: React.FC = () => {
               })}
               <Button
                 size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
               >
                 Próxima
@@ -581,7 +583,7 @@ const ConsultasPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Diálogo criar/editar/remarcar */}
+        {/* diálogo criar/editar/remarcar */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-[700px] w-full max-h-[85vh] overflow-y-auto">
             <DialogHeader>
@@ -602,7 +604,7 @@ const ConsultasPage: React.FC = () => {
                   <Input
                     type="date"
                     value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
+                    onChange={e => setNewDate(e.target.value)}
                     required
                   />
                 </div>
@@ -612,17 +614,17 @@ const ConsultasPage: React.FC = () => {
                   <Input
                     type="time"
                     value={newTime}
-                    onChange={(e) => setNewTime(e.target.value)}
+                    onChange={e => setNewTime(e.target.value)}
                     required
                   />
                 </div>
-                {/* Autocomplete Médico */}
+                {/* Médico */}
                 <div className="flex flex-col gap-1 relative">
                   <Label>Médico *</Label>
                   <Input
                     type="text"
                     value={doctorSearch}
-                    onChange={(e) => {
+                    onChange={e => {
                       setDoctorSearch(e.target.value);
                       if (!e.target.value) setSelectedDoctorId(null);
                     }}
@@ -632,7 +634,7 @@ const ConsultasPage: React.FC = () => {
                   />
                   {doctorResults.length > 0 && (
                     <div className="absolute top-full left-0 w-full bg-white border z-10">
-                      {doctorResults.map((doc) => (
+                      {doctorResults.map(doc => (
                         <div
                           key={doc.id_profissional}
                           className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
@@ -644,13 +646,13 @@ const ConsultasPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {/* Autocomplete Paciente */}
+                {/* Paciente */}
                 <div className="flex flex-col gap-1 relative">
                   <Label>Paciente *</Label>
                   <Input
                     type="text"
                     value={patientSearch}
-                    onChange={(e) => {
+                    onChange={e => {
                       setPatientSearch(e.target.value);
                       if (!e.target.value) {
                         setSelectedPatientId(null);
@@ -663,7 +665,7 @@ const ConsultasPage: React.FC = () => {
                   />
                   {patientResults.length > 0 && (
                     <div className="absolute top-full left-0 w-full bg-white border z-10">
-                      {patientResults.map((p) => (
+                      {patientResults.map(p => (
                         <div
                           key={p.id_paciente}
                           className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
@@ -675,7 +677,7 @@ const ConsultasPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {/* CPF do Paciente */}
+                {/* CPF */}
                 {selectedPatientCPF && (
                   <div className="flex flex-col gap-1">
                     <Label>CPF</Label>
@@ -688,14 +690,14 @@ const ConsultasPage: React.FC = () => {
                   <select
                     className="px-3 py-2 border rounded-md"
                     value={
-                      consultations.find((c) => c.id_consulta === selectedConsultationId)
+                      consultations.find(c => c.id_consulta === selectedConsultationId)
                         ?.specialtyId || ""
                     }
-                    onChange={(e) => {
+                    onChange={e => {
                       const id = Number(e.target.value);
-                      const spec = allSpecialties.find((s) => s.id_tipo_consulta === id);
-                      setConsultations((prev) =>
-                        prev.map((c) =>
+                      const spec = allSpecialties.find(s => s.id_tipo_consulta === id);
+                      setConsultations(prev =>
+                        prev.map(c =>
                           c.id_consulta === selectedConsultationId
                             ? {
                                 ...c,
@@ -709,7 +711,7 @@ const ConsultasPage: React.FC = () => {
                     required
                   >
                     <option value="">Selecione...</option>
-                    {allSpecialties.map((s) => (
+                    {allSpecialties.map(s => (
                       <option key={s.id_tipo_consulta} value={s.id_tipo_consulta}>
                         {s.tipoconsulta_nome}
                       </option>
@@ -731,6 +733,4 @@ const ConsultasPage: React.FC = () => {
       </main>
     </>
   );
-};
-
-export default ConsultasPage;
+}
