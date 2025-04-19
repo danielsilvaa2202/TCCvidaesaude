@@ -104,9 +104,6 @@ interface DoencaFamiliar {
   doenca_familiar_nome: string;
 }
 
-//
-// ─── CONSTANTES ────────────────────────────────────────────────────────────────
-//
 const STATUS_AGENDADA = 1;
 const STATUS_CONCLUIDA = 2;
 
@@ -116,9 +113,7 @@ const topNavLinks: TopNavLink[] = [
   { title: "Pacientes", href: "/pacientes", isActive: true, disabled: false },
 ];
 
-//
-// ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
-//
+
 export default function ConsultaGestaoPage() {
   // ── filtros gerais ─────────────────────────────────────────────────────────
   const [selectedMedicoId, setSelectedMedicoId] = useState<number>(1);

@@ -125,6 +125,7 @@ export default function ProfissionaisPage() {
   const [profEspecialidade, setProfEspecialidade] = useState<
     number | ""
   >("");
+  const [profMedicoId, setProfMedicoId] = useState<number | null>(null);
 
   // Diálogo de inativar
   const [alertOpen, setAlertOpen] = useState(false);
@@ -189,6 +190,7 @@ export default function ProfissionaisPage() {
         setProfCargo(p.id_cargo);
         setProfCRM("");
         setProfEspecialidade("");
+        setProfMedicoId(null);
         if ((p.cargo_nome || "").toLowerCase() === "médico") {
           fetch(`/api/medicos?profissional=${selectedProfId}`)
             .then((r) => r.json())
@@ -196,6 +198,7 @@ export default function ProfissionaisPage() {
               if (meds.length) {
                 setProfCRM(meds[0].crm);
                 setProfEspecialidade(meds[0].id_especialidade);
+                setProfMedicoId(meds[0].id_medico);
               }
             })
             .catch(() => {});
@@ -213,6 +216,7 @@ export default function ProfissionaisPage() {
       setProfCargo("");
       setProfCRM("");
       setProfEspecialidade("");
+      setProfMedicoId(null);
     }
   }, [dialogMode, selectedProfId, professionals]);
 
@@ -252,7 +256,6 @@ export default function ProfissionaisPage() {
     })
       .then((r) => {
         if (!r.ok) throw new Error();
-        // refetch para garantir sincronia
         fetchProfessionals();
         setAlertOpen(false);
       })
@@ -281,9 +284,10 @@ export default function ProfissionaisPage() {
   });
 
   // Submissão do form create/edit
-  function handleSubmitProfessional(e: React.FormEvent) {
+  const handleSubmitProfessional = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profCPF || !profName || !profEmail || !profBirthDate) return;
+
     const url =
       dialogMode === "create"
         ? "/api/profissionais"
@@ -304,21 +308,43 @@ export default function ProfissionaisPage() {
     } else if (profPassword) {
       payload.prof_senha = profPassword;
     }
-    fetch(url, {
+
+    // primeiro cria/atualiza o profissional
+    const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return dialogMode === "create" ? r.json() : null;
-      })
-      .then((d) => {
-        setDialogOpen(false);
-        fetchProfessionals();
-      })
-      .catch(() => {});
-  }
+    });
+    if (!res.ok) throw new Error();
+    const data = dialogMode === "create" ? await res.json() : null;
+
+    // se for médico, sincroniza na tabela de médicos
+    if (cargoEhMedico()) {
+      if (dialogMode === "create" && data) {
+        await fetch("/api/medicos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            crm: profCRM,
+            id_especialidade: profEspecialidade,
+            id_profissional: data.id_profissional,
+          }),
+        });
+      } else if (dialogMode === "edit" && profMedicoId) {
+        await fetch(`/api/medicos/${profMedicoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            crm: profCRM,
+            id_especialidade: profEspecialidade,
+          }),
+        });
+      }
+    }
+
+    setDialogOpen(false);
+    fetchProfessionals();
+  };
 
   function handleAccessCheckboxChange(a: string) {
     setAllowedAccesses((prev) =>
@@ -360,7 +386,7 @@ export default function ProfissionaisPage() {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((d) => {
+      .then(() => {
         setCargoDialogOpen(false);
         setCargoName("");
       })
@@ -496,7 +522,7 @@ export default function ProfissionaisPage() {
 
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Profissionais Cadastrados</CardTitle>  
+            <CardTitle>Profissionais Cadastrados</CardTitle>
             <CardDescription>
               {statusFilter === "all"
                 ? `Total: ${displayedProfessionals.length}`
