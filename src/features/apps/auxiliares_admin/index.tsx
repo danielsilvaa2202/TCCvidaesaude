@@ -67,6 +67,18 @@ const topNavLinks = [
   { title: "Auxiliares", href: "/auxiliares", isActive: true, disabled: false },
 ];
 
+// Mapeamento de chaves internas para rótulos amigáveis
+const tabLabels: Record<string, string> = {
+  Especialidades:      "Especialidades",
+  TiposConsulta:       "Tipos de Consulta",
+  StatusConsulta:      "Status de Consulta",
+  Alergias:            "Alergias",
+  Doencas:             "Doenças",
+  DoencasFamiliares:   "Doenças Familiares",
+  Medicamentos:        "Medicamentos",
+  Duracoes:            "Durações de Medicamentos",
+};
+
 export default function AuxiliaresPage() {
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
   const [tiposConsulta, setTiposConsulta] = useState<TipoConsulta[]>([]);
@@ -133,14 +145,14 @@ export default function AuxiliaresPage() {
   };
 
   const labelsMap: Record<string, {head:string[]; fields:string[]}> = {
-    'Especialidades':{ head:['ID','Nome'], fields:['id_especialidade','espec_nome'] },
-    'TiposConsulta':{ head:['ID','Tipo'], fields:['id_tipo_consulta','tipoconsulta_nome'] },
-    'StatusConsulta':{ head:['ID','Status'], fields:['id_consult_status','status_consulta'] },
-    'Alergias':{ head:['ID','Alergia'], fields:['id_alergia','alergia_nome'] },
-    'Doencas':{ head:['ID','Doença'], fields:['id_doenca','doenca_nome'] },
-    'DoencasFamiliares':{ head:['ID','Doença Familiar'], fields:['id_doenca_familiar','doenca_familiar_nome'] },
-    'Medicamentos':{ head:['ID','Medicamento','Posologia'], fields:['id_medicamento','medicamento_nome','medicamento_posologia'] },
-    'Duracoes':{ head:['ID','Medicamento','Duração'], fields:['id_duracao_med','id_medicamento','duracao'] },
+    'Especialidades':      { head:['ID','Nome'],               fields:['id_especialidade','espec_nome'] },
+    'TiposConsulta':       { head:['ID','Tipo'],               fields:['id_tipo_consulta','tipoconsulta_nome'] },
+    'StatusConsulta':      { head:['ID','Status'],             fields:['id_consult_status','status_consulta'] },
+    'Alergias':            { head:['ID','Alergia'],            fields:['id_alergia','alergia_nome'] },
+    'Doencas':             { head:['ID','Doença'],             fields:['id_doenca','doenca_nome'] },
+    'DoencasFamiliares':   { head:['ID','Doença Familiar'],     fields:['id_doenca_familiar','doenca_familiar_nome'] },
+    'Medicamentos':        { head:['ID','Medicamento','Posologia'], fields:['id_medicamento','medicamento_nome','medicamento_posologia'] },
+    'Duracoes':            { head:['ID','Medicamento','Duração'], fields:['id_duracao_med','id_medicamento','duracao'] },
   };
 
   function handleSubmit(e: React.FormEvent) {
@@ -179,7 +191,7 @@ export default function AuxiliaresPage() {
           <TabsList className="flex flex-wrap gap-2">
             {Object.keys(apiMap).map(tab => (
               <TabsTrigger key={tab} value={tab} className="capitalize">
-                {tab}
+                {tabLabels[tab]}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -188,7 +200,7 @@ export default function AuxiliaresPage() {
             <TabsContent key={tab} value={tab}>
               <Card className="shadow-md">
                 <CardHeader className="flex flex-col md:flex-row md:justify-between">
-                  <CardTitle>{tab}</CardTitle>
+                  <CardTitle>{tabLabels[tab]}</CardTitle>
                   <Button onClick={() => openCreate(tab)}>Adicionar</Button>
                 </CardHeader>
                 <Separator />
@@ -202,18 +214,16 @@ export default function AuxiliaresPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {((
-                          {
-                            'Especialidades': especialidades,
-                            'TiposConsulta': tiposConsulta,
-                            'StatusConsulta': statusConsulta,
-                            'Alergias': alergias,
-                            'Doencas': doencas,
-                            'DoencasFamiliares': doencasFamiliares,
-                            'Medicamentos': medicamentos,
-                            'Duracoes': duracoes
-                          } as Record<string, any[]>)
-                        )[tab].map(item => (
+                        {(({
+                          'Especialidades': especialidades,
+                          'TiposConsulta': tiposConsulta,
+                          'StatusConsulta': statusConsulta,
+                          'Alergias': alergias,
+                          'Doencas': doencas,
+                          'DoencasFamiliares': doencasFamiliares,
+                          'Medicamentos': medicamentos,
+                          'Duracoes': duracoes
+                        } as Record<string, any[]>)[tab]).map(item => (
                           <TableRow key={item[labelsMap[tab].fields[0]]}>
                             {labelsMap[tab].fields.map(f => {
                               const value = item[f];
@@ -277,7 +287,10 @@ export default function AuxiliaresPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{dialogMode === 'create' ? 'Adicionar' : 'Editar'} {currentTab}</DialogTitle>
+            <DialogTitle>
+              {dialogMode === 'create' ? 'Adicionar ' : 'Editar '}
+              {tabLabels[currentTab]}
+            </DialogTitle>
             <DialogDescription>Preencha os campos abaixo</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">

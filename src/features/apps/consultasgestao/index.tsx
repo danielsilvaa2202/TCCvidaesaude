@@ -101,6 +101,13 @@ const topNavLinks: TopNavLink[] = [
 
 const ITEMS_PER_PAGE = 10;
 
+/** Formata "YYYY-MM-DD" (ou "YYYY-MM-DDTHH:MM:SS") para "DD/MM/YYYY" sem shift de fuso */
+const formatDateLocal = (iso: string) => {
+  const datePart = iso.split("T")[0];           // descarta hora, se existir
+  const [year, month, day] = datePart.split("-");
+  return `${day}/${month}/${year}`;
+};
+
 export default function ConsultasPage() {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [allStatuses, setAllStatuses] = useState<Status[]>([]);
@@ -115,6 +122,7 @@ export default function ConsultasPage() {
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [newSpecialtyId, setNewSpecialtyId] = useState<number | "">("");
 
   const [doctorSearch, setDoctorSearch] = useState("");
   const [doctorResults, setDoctorResults] = useState<Doctor[]>([]);
@@ -125,7 +133,7 @@ export default function ConsultasPage() {
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedPatientCPF, setSelectedPatientCPF] = useState("");
 
-  // load statuses and specialties once
+  // carrega statuses e especialidades
   useEffect(() => {
     fetch("/api/statusconsulta")
       .then(r => r.json())
@@ -138,7 +146,7 @@ export default function ConsultasPage() {
       .catch(console.error);
   }, []);
 
-  // single function to fetch and map consultations
+  // busca consultas
   const fetchConsultations = () => {
     const params = new URLSearchParams();
     if (registrationFrom) params.append("data_ini", registrationFrom);
@@ -169,7 +177,7 @@ export default function ConsultasPage() {
       .catch(console.error);
   };
 
-  // reload on mount, on filter change, every 15s, and on window focus
+  // recarrega em mount, filtros, foco e a cada 15s
   useEffect(() => {
     fetchConsultations();
     const iv = setInterval(fetchConsultations, 15000);
@@ -185,6 +193,7 @@ export default function ConsultasPage() {
     setSelectedConsultationId(c.id_consulta);
     setNewDate(c.consult_data);
     setNewTime(c.consult_hora);
+    setNewSpecialtyId(c.specialtyId);
     setSelectedDoctorId(c.doctorId);
     setDoctorSearch(c.doctorName);
     setSelectedPatientId(c.patientId);
@@ -195,6 +204,7 @@ export default function ConsultasPage() {
     setSelectedConsultationId(null);
     setNewDate("");
     setNewTime("");
+    setNewSpecialtyId("");
     setDoctorSearch("");
     setDoctorResults([]);
     setSelectedDoctorId(null);
@@ -204,6 +214,7 @@ export default function ConsultasPage() {
     setSelectedPatientCPF("");
   };
 
+  // abre diálogos
   const openCreateDialog = () => {
     setDialogMode("create");
     clearForm();
@@ -220,10 +231,10 @@ export default function ConsultasPage() {
     setDialogOpen(true);
   };
 
-  // submit create/edit/reschedule
+  // cria/edita/reagenda
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDate || !newTime || !selectedDoctorId || !selectedPatientId) {
+    if (!newDate || !newTime || !selectedDoctorId || !selectedPatientId || !newSpecialtyId) {
       return alert("Preencha todos os campos.");
     }
     let url = "/api/consultas";
@@ -233,21 +244,23 @@ export default function ConsultasPage() {
       id_profissional: selectedDoctorId,
       consult_data: newDate,
       consult_hora: newTime,
-      id_tipo_consulta:
-        consultations.find(c => c.id_consulta === selectedConsultationId)
-          ?.specialtyId,
+      id_tipo_consulta: newSpecialtyId,
     };
-    if (dialogMode === "edit") {
-      payload.id_consult_status = consultations.find(c => c.id_consulta === selectedConsultationId)
-        ?.statusId;
+
+    if (dialogMode === "create") {
+      payload.id_consult_status = 1; // pendente
+    } else {
       url = `/api/consultas/${selectedConsultationId}`;
       method = "PUT";
+      if (dialogMode === "edit") {
+        payload.id_consult_status =
+          consultations.find(c => c.id_consulta === selectedConsultationId)
+            ?.statusId;
+      } else if (dialogMode === "reschedule") {
+        payload.id_consult_status = 5;
+      }
     }
-    if (dialogMode === "reschedule") {
-      payload.id_consult_status = 5;
-      url = `/api/consultas/${selectedConsultationId}`;
-      method = "PUT";
-    }
+
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -268,7 +281,7 @@ export default function ConsultasPage() {
       });
   };
 
-  // change status (including concluded = 2)
+  // muda status
   const handleStatusChange = (id: number, statusId: number) => {
     fetch(`/api/consultas/${id}/status`, {
       method: "PATCH",
@@ -350,7 +363,7 @@ export default function ConsultasPage() {
     setPatientResults([]);
   };
 
-  // filter & paginate
+  // filtra e pagina
   const filtered = consultations.filter(c => {
     const t = searchTerm.toLowerCase();
     return (
@@ -368,11 +381,11 @@ export default function ConsultasPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  // export CSV
+  // exporta CSV
   const handleExport = () => {
     const headers = ["Data", "Hora", "Médico", "Paciente", "Especialidade", "Status"];
     const rows = filtered.map(c => [
-      new Date(c.consult_data).toLocaleDateString("pt-BR"),
+      formatDateLocal(c.consult_data),
       c.consult_hora,
       c.doctorName,
       c.patientName,
@@ -453,7 +466,7 @@ export default function ConsultasPage() {
                     <TableHead>Hora</TableHead>
                     <TableHead>Médico</TableHead>
                     <TableHead>Paciente</TableHead>
-                    <TableHead>Especialidade</TableHead>
+                    <TableHead>Tipo de Consulta</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -461,9 +474,7 @@ export default function ConsultasPage() {
                 <TableBody>
                   {paged.map(c => (
                     <TableRow key={c.id_consulta}>
-                      <TableCell>
-                        {new Date(c.consult_data).toLocaleDateString("pt-BR")}
-                      </TableCell>
+                      <TableCell>{formatDateLocal(c.consult_data)}</TableCell>
                       <TableCell>{c.consult_hora}</TableCell>
                       <TableCell>{c.doctorName}</TableCell>
                       <TableCell>
@@ -686,28 +697,11 @@ export default function ConsultasPage() {
                 )}
                 {/* Especialidade */}
                 <div className="flex flex-col gap-1">
-                  <Label>Especialidade *</Label>
+                  <Label>Tipo de Consulta *</Label>
                   <select
                     className="px-3 py-2 border rounded-md"
-                    value={
-                      consultations.find(c => c.id_consulta === selectedConsultationId)
-                        ?.specialtyId || ""
-                    }
-                    onChange={e => {
-                      const id = Number(e.target.value);
-                      const spec = allSpecialties.find(s => s.id_tipo_consulta === id);
-                      setConsultations(prev =>
-                        prev.map(c =>
-                          c.id_consulta === selectedConsultationId
-                            ? {
-                                ...c,
-                                specialtyId: id,
-                                specialty: spec?.tipoconsulta_nome || c.specialty,
-                              }
-                            : c
-                        )
-                      );
-                    }}
+                    value={newSpecialtyId}
+                    onChange={e => setNewSpecialtyId(Number(e.target.value))}
                     required
                   >
                     <option value="">Selecione...</option>

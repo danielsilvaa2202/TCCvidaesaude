@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { AxiosError } from "axios";
 import {
@@ -38,13 +38,19 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          toast({
-            variant: "destructive",
-            title: "Sessão expirada!",
+          // garante limpeza back‑end antes de resetar
+          fetch("http://localhost:5000/api/logout", {
+            method: "POST",
+            credentials: "include",
+          }).finally(() => {
+            toast({
+              variant: "destructive",
+              title: "Sessão expirada!",
+            });
+            useAuthStore.getState().reset();
+            const redirect = window.location.href;
+            router.navigate({ to: "/sign-in-2", search: { redirect } });
           });
-          useAuthStore.getState().reset();
-          const redirect = router.history.location.href;
-          router.navigate({ to: "/sign-in-2", search: { redirect } });
         }
         if (error.response?.status === 500) {
           toast({
@@ -65,10 +71,21 @@ const router = createRouter({
   defaultPreloadStaleTime: 0,
 });
 
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+function App() {
+  const verifyLogin = useAuthStore((state) => state.verifyLogin);
+
+  useEffect(() => {
+    verifyLogin().catch(() => {
+    });
+  }, [verifyLogin]);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
 }
 
 const rootElement = document.getElementById("root");
@@ -76,11 +93,7 @@ if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-          <RouterProvider router={router} />
-        </ThemeProvider>
-      </QueryClientProvider>
+      <App />
     </StrictMode>
   );
 }
