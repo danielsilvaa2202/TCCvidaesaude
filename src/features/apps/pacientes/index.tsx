@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,18 +40,11 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 
-interface TopNavLink {
-  title: string;
-  href: string;
-  isActive: boolean;
-  disabled: boolean;
-}
-
+interface TopNavLink { title: string; href: string; isActive: boolean; disabled: boolean }
 interface Patient {
   id_paciente: number;
   pac_cpf: string;
@@ -62,7 +54,7 @@ interface Patient {
   pac_data_nascimento: string;
   pac_genero: string;
   pac_cep: string;
-  pac_endereco: string;
+  pac_endereco: string;    // "Rua X, 123"
   pac_cidade: string;
   pac_estado: string;
   pac_data_cadastro: string;
@@ -71,20 +63,66 @@ interface Patient {
 
 const topNavLinks: TopNavLink[] = [
   { title: "Início", href: "/", isActive: true, disabled: false },
-  { title: "Consultas", href: "/consultasgestao", isActive: true, disabled: false },
+  { title: "Consultas", href: "/consultasgestao", isActive: false, disabled: false },
   { title: "Pacientes", href: "/pacientes", isActive: true, disabled: false },
 ];
+
+const CPF_RE = /^\d{11}$/;
+function validarCPF(c: string): boolean {
+  const cpf = c.replace(/\D/g, "");
+  if (!CPF_RE.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const calc = (m: number) => {
+    let sum = 0;
+    for (let i = 0; i < m; i++) sum += parseInt(cpf.charAt(i)) * (m + 1 - i);
+    return ((sum * 10) % 11) % 10;
+  };
+  return calc(9) === parseInt(cpf.charAt(9)) && calc(10) === parseInt(cpf.charAt(10));
+}
+
+function formatCPF(value: string): string {
+  const v = value.replace(/\D/g, "");
+  return v
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3-$4")
+    .slice(0, 14);
+}
+
+function formatPhone(value: string): string {
+  const v = value.replace(/\D/g, "");
+  return v
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2")
+    .slice(0, 15);
+}
+
+function formatCep(value: string): string {
+  const v = value.replace(/\D/g, "");
+  return v.replace(/(\d{5})(\d)/, "$1-$2").slice(0, 9);
+}
+
+function isPastOrToday(dateStr: string): boolean {
+  const today = new Date();
+  const d = new Date(dateStr);
+  return d <= today;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CEP_RE = /^\d{8}$/;
+const UF_SET = new Set([
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
+  "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
+  "RS","RO","RR","SC","SP","SE","TO"
+]);
 
 const PacientesPage: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active"|"inactive"|"all">("active");
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [dialogMode, setDialogMode] = useState<"create"|"edit">("create");
+  const [selectedPatientId, setSelectedPatientId] = useState<number|null>(null);
 
   const [cpf, setCpf] = useState("");
   const [name, setName] = useState("");
@@ -94,115 +132,156 @@ const PacientesPage: React.FC = () => {
   const [gender, setGender] = useState("");
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
+  const [number, setNumber] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
 
+  const [errors, setErrors] = useState<Partial<Record<string,string>>>({});
+  const [loadingCep, setLoadingCep] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
-  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [patientToDelete, setPatientToDelete] = useState<Patient|null>(null);
 
-  // Busca pacientes com filtros (search, dates, ativo)
-  function fetchPatients() {
-    const params = new URLSearchParams();
-    if (searchTerm) params.append("search", searchTerm);
-    if (dateFrom)     params.append("data_ini", dateFrom);
-    if (dateTo)       params.append("data_fim", dateTo);
-    params.append("ativo", statusFilter);  // novo parâmetro para backend
-    fetch(`/api/pacientes?${params.toString()}`)
-      .then((res) => res.json())
+  // fetch pacientes
+  const fetchPatients = () => {
+    fetch("/api/pacientes")
+      .then(res => res.json())
       .then(setPatients)
       .catch(console.error);
-  }
+  };
+  useEffect(fetchPatients, []);
 
-  // Re-fetch sempre que qualquer filtro mudar
-  useEffect(() => {
-    fetchPatients();
-  }, [searchTerm, dateFrom, dateTo, statusFilter]);
-
-  // Pré-carrega dados para edição
-  useEffect(() => {
-    if (dialogMode === "edit" && selectedPatientId !== null) {
-      const p = patients.find((x) => x.id_paciente === selectedPatientId);
-      if (p) {
-        setCpf(p.pac_cpf);
-        setName(p.pac_nome);
-        setEmail(p.pac_email);
-        setPhone(p.pac_telefone);
-        setBirthDate(p.pac_data_nascimento);
-        setGender(p.pac_genero);
-        setCep(p.pac_cep);
-        setAddress(p.pac_endereco);
-        setCity(p.pac_cidade);
-        setState(p.pac_estado);
-      }
-    } else {
-      clearForm();
-    }
-  }, [dialogMode, selectedPatientId, patients]);
-
+  // clear dialog form
   const clearForm = () => {
-    setCpf("");
-    setName("");
-    setEmail("");
-    setPhone("");
-    setBirthDate("");
-    setGender("");
-    setCep("");
-    setAddress("");
-    setCity("");
-    setState("");
+    setCpf(""); setName(""); setEmail(""); setPhone("");
+    setBirthDate(""); setGender(""); setCep("");
+    setAddress(""); setNumber(""); setCity(""); setState("");
+    setErrors({});
   };
 
+  // open create
   const openCreateDialog = () => {
+    clearForm();
     setDialogMode("create");
     setSelectedPatientId(null);
-    clearForm();
     setDialogOpen(true);
   };
 
+  // open edit
   const openEditDialog = (id: number) => {
+    const p = patients.find(x => x.id_paciente === id);
+    if (p) {
+      setCpf(p.pac_cpf);
+      setName(p.pac_nome);
+      setEmail(p.pac_email);
+      setPhone(p.pac_telefone);
+      setBirthDate(new Date(p.pac_data_nascimento).toISOString().slice(0, 10));
+      setGender(p.pac_genero);
+      setCep(p.pac_cep);
+      // split "Rua X, 123"
+      const [st, num=""] = p.pac_endereco.split(",").map(s => s.trim());
+      setAddress(st);
+      setNumber(num);
+      setCity(p.pac_cidade);
+      setState(p.pac_estado);
+    }
     setDialogMode("edit");
     setSelectedPatientId(id);
     setDialogOpen(true);
   };
 
+  // delete/reactivate
   const openDeleteAlert = (p: Patient) => {
     setPatientToDelete(p);
     setAlertOpen(true);
   };
-
-  // Inativar paciente
   const handleConfirmDelete = () => {
     if (!patientToDelete) return;
-    fetch(`/api/pacientes/${patientToDelete.id_paciente}`, {
-      method: "DELETE",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao inativar paciente");
-        setAlertOpen(false);
-        fetchPatients();
-      })
+    fetch(`/api/pacientes/${patientToDelete.id_paciente}`, { method: "DELETE" })
+      .then(res => { if (!res.ok) throw new Error(); setAlertOpen(false); fetchPatients(); })
       .catch(console.error);
   };
-
-  // Reativar paciente
   const handleReactivate = (id: number) => {
-    fetch(`/api/pacientes/${id}/reativar`, {
-      method: "PUT",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao reativar paciente");
-        fetchPatients();
-      })
+    fetch(`/api/pacientes/${id}/reativar`, { method: "PUT" })
+      .then(res => { if (!res.ok) throw new Error(); fetchPatients(); })
       .catch(console.error);
   };
 
-  // Submissão do formulário
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!cpf || !name || !birthDate) {
-      alert("CPF, Nome e Data de Nascimento são obrigatórios.");
-      return;
+  // auto-fill address by CEP
+  useEffect(() => {
+    const raw = cep.replace(/\D/g, "");
+    if (CEP_RE.test(raw)) {
+      setLoadingCep(true);
+      fetch(`https://brasilapi.com.br/api/cep/v2/${raw}`)
+        .then(res => res.json())
+        .then(data => {
+          setAddress(data.street);
+          setCity(data.city);
+          setState(data.state);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingCep(false));
     }
+  }, [cep]);
+
+  // validation
+  const validateField = (field: string, value: string) => {
+    let msg = "";
+    switch (field) {
+      case "cpf":
+        if (!value) msg = "CPF obrigatório";
+        else if (!validarCPF(value)) msg = "CPF inválido";
+        break;
+      case "name":
+        if (!value.trim()) msg = "Nome obrigatório";
+        else if (/\d/.test(value)) msg = "Sem números";
+        else if (value.trim().length < 3) msg = "Muito curto";
+        break;
+      case "birthDate":
+        if (!value) msg = "Data obrigatória";
+        else if (!isPastOrToday(value)) msg = "Data futura";
+        break;
+      case "email":
+        if (value && !EMAIL_RE.test(value)) msg = "E-mail inválido";
+        break;
+      case "phone":
+        if (!value) msg = "Telefone obrigatório";
+        else if (value.replace(/\D/g, "").length < 10) msg = "Incompleto";
+        break;
+      case "cep":
+        if (!value) msg = "CEP obrigatório";
+        else if (!CEP_RE.test(value.replace(/\D/g, ""))) msg = "CEP inválido";
+        break;
+      case "number":
+        if (!value) msg = "Número obrigatório";
+        else if (!/^\d+$/.test(value)) msg = "Só dígitos";
+        break;
+      case "state":
+        if (value && !UF_SET.has(value.toUpperCase())) msg = "UF inválida";
+        break;
+      case "gender":
+        if (!value) msg = "Gênero obrigatório";
+        break;
+    }
+    setErrors(prev => ({ ...prev, [field]: msg }));
+  };
+
+  const handleChange = (
+    field: string,
+    setter: (v: string) => void,
+    formatter?: (v: string) => string
+  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const raw = e.target.value;
+    setter(formatter ? raw.replace(/\D/g, "") : raw);
+    validateField(field, formatter ? raw.replace(/\D/g, "") : raw);
+  };
+
+  // submit
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    ["cpf","name","birthDate","email","phone","cep","number","state","gender"].forEach(f =>
+      validateField(f, ({ cpf,name,email,phone,cep,number,state,birthDate,gender } as any)[f])
+    );
+    if (Object.values(errors).some(x => x)) return;
     const payload = {
       pac_cpf: cpf,
       pac_nome: name,
@@ -211,34 +290,32 @@ const PacientesPage: React.FC = () => {
       pac_data_nascimento: birthDate,
       pac_genero: gender,
       pac_cep: cep,
-      pac_endereco: address,
+      pac_endereco: `${address}, ${number}`,
       pac_cidade: city,
       pac_estado: state,
     };
-    const url    = dialogMode === "create" ? "/api/pacientes" : `/api/pacientes/${selectedPatientId}`;
+    const url = dialogMode === "create"
+      ? "/api/pacientes"
+      : `/api/pacientes/${selectedPatientId}`;
     const method = dialogMode === "create" ? "POST" : "PUT";
-
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao salvar paciente");
-        return res.json();
-      })
+      .then(res => { if (!res.ok) throw new Error(); return res.json(); })
       .then(() => {
         setDialogOpen(false);
         clearForm();
         fetchPatients();
       })
-      .catch((err) => {
-        console.error(err);
-        alert("Erro ao salvar paciente");
-      });
+      .catch(() => alert("Erro ao salvar paciente"));
   };
 
-  // Tabela de pacientes
+  const isFormValid =
+    cpf && name && birthDate && gender && cep && number &&
+    !Object.values(errors).some(x => x);
+
   return (
     <>
       <Header>
@@ -249,31 +326,19 @@ const PacientesPage: React.FC = () => {
       </Header>
 
       <main className="p-4 space-y-6">
-        <h1 className="text-3xl font-bold font-quicksand">Lista de Pacientes</h1>
+        <h1 className="text-3xl font-bold">Lista de Pacientes</h1>
 
         <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Pesquisar..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="w-48"
-          />
-          <Input
-            type="date"
-            className="w-36"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-          <Input
-            type="date"
-            className="w-36"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 border rounded-md shadow-sm"
+            onChange={e => setStatusFilter(e.target.value as any)}
+            className="px-3 py-2 border rounded-md"
           >
             <option value="active">Ativos</option>
             <option value="inactive">Inativos</option>
@@ -310,20 +375,23 @@ const PacientesPage: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {patients
-                    .filter(p =>
-                      statusFilter === "all"
-                        ? true
-                        : statusFilter === "active"
+                    .filter(p => {
+                      if (statusFilter === "all") return true;
+                      return statusFilter === "active"
                         ? p.pac_ativo
-                        : !p.pac_ativo
+                        : !p.pac_ativo;
+                    })
+                    .filter(p =>
+                      p.pac_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      p.pac_cpf.includes(searchTerm.replace(/\D/g, ""))
                     )
-                    .map((p) => (
+                    .map(p => (
                       <TableRow
                         key={p.id_paciente}
                         className={!p.pac_ativo ? "bg-gray-100" : ""}
                       >
                         <TableCell>{p.pac_nome}</TableCell>
-                        <TableCell>{p.pac_cpf}</TableCell>
+                        <TableCell>{formatCPF(p.pac_cpf)}</TableCell>
                         <TableCell>
                           {new Date(p.pac_data_nascimento)
                             .toISOString()
@@ -333,7 +401,7 @@ const PacientesPage: React.FC = () => {
                             .join("/")}
                         </TableCell>
                         <TableCell>{p.pac_email}</TableCell>
-                        <TableCell>{p.pac_telefone}</TableCell>
+                        <TableCell>{formatPhone(p.pac_telefone)}</TableCell>
                         <TableCell>{p.pac_endereco}</TableCell>
                         <TableCell>
                           {p.pac_cidade} / {p.pac_estado}
@@ -372,13 +440,10 @@ const PacientesPage: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))}
-                  {patients.filter(p =>
-                    statusFilter === "all"
-                      ? true
-                      : statusFilter === "active"
-                      ? p.pac_ativo
-                      : !p.pac_ativo
-                  ).length === 0 && (
+                  {patients.filter(p => {
+                    if (statusFilter === "all") return true;
+                    return statusFilter === "active" ? p.pac_ativo : !p.pac_ativo;
+                  }).length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="py-4 text-center">
                         Nenhum paciente encontrado.
@@ -417,47 +482,98 @@ const PacientesPage: React.FC = () => {
             <div className="grid gap-4 py-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col gap-1">
                 <Label>CPF *</Label>
-                <Input required value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                <Input
+                  value={formatCPF(cpf)}
+                  onChange={handleChange("cpf", setCpf, formatCPF)}
+                />
+                {errors.cpf && <p className="text-red-600 text-sm">{errors.cpf}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
                 <Label>Nome *</Label>
-                <Input required value={name} onChange={(e) => setName(e.target.value)} />
+                <Input value={name} onChange={handleChange("name", setName)} />
+                {errors.name && <p className="text-red-600 text-sm">{errors.name}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
                 <Label>E-mail</Label>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input value={email} onChange={handleChange("email", setEmail)} />
+                {errors.email && <p className="text-red-600 text-sm">{errors.email}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
-                <Label>Telefone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Label>Telefone *</Label>
+                <Input
+                  value={formatPhone(phone)}
+                  onChange={handleChange("phone", setPhone, formatPhone)}
+                />
+                {errors.phone && <p className="text-red-600 text-sm">{errors.phone}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
                 <Label>Data de Nascimento *</Label>
-                <Input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={birthDate}
+                  onChange={handleChange("birthDate", setBirthDate)}
+                />
+                {errors.birthDate && <p className="text-red-600 text-sm">{errors.birthDate}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
-                <Label>Gênero</Label>
-                <Input value={gender} onChange={(e) => setGender(e.target.value)} />
+                <Label>Gênero *</Label>
+                <select
+                  value={gender}
+                  onChange={handleChange("gender", setGender)}
+                  className="px-3 py-2 border rounded-md"
+                >
+                  <option value="">Selecione</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Feminino</option>
+                  <option value="Outro">Outro</option>
+                </select>
+                {errors.gender && <p className="text-red-600 text-sm">{errors.gender}</p>}
               </div>
-              <div className="flex flex-col gap-1">
-                <Label>CEP</Label>
-                <Input value={cep} onChange={(e) => setCep(e.target.value)} />
+
+              <div className="flex flex-col gap-1 relative">
+                <Label>CEP *</Label>
+                <Input
+                  value={formatCep(cep)}
+                  onChange={handleChange("cep", setCep, formatCep)}
+                />
+                {loadingCep && (
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                )}
+                {errors.cep && <p className="text-red-600 text-sm">{errors.cep}</p>}
               </div>
+
               <div className="flex flex-col gap-1">
                 <Label>Endereço</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+                <Input value={address} onChange={e => setAddress(e.target.value)} />
               </div>
+
+              <div className="flex flex-col gap-1">
+                <Label>Número *</Label>
+                <Input value={number} onChange={handleChange("number", setNumber)} />
+                {errors.number && <p className="text-red-600 text-sm">{errors.number}</p>}
+              </div>
+
               <div className="flex flex-col gap-1">
                 <Label>Cidade</Label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                <Input value={city} onChange={e => setCity(e.target.value)} />
               </div>
+
               <div className="flex flex-col gap-1">
                 <Label>Estado</Label>
-                <Input value={state} onChange={(e) => setState(e.target.value)} />
+                <Input value={state} onChange={handleChange("state", setState)} />
+                {errors.state && <p className="text-red-600 text-sm">{errors.state}</p>}
               </div>
             </div>
+
             <DialogFooter>
-              <Button type="submit">{dialogMode === "create" ? "Cadastrar" : "Salvar"}</Button>
+              <Button type="submit" disabled={!isFormValid}>
+                {dialogMode === "create" ? "Cadastrar" : "Salvar"}
+              </Button>
               <DialogClose asChild>
                 <Button variant="outline">Cancelar</Button>
               </DialogClose>
@@ -474,9 +590,7 @@ const PacientesPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              Inativar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete}>Inativar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

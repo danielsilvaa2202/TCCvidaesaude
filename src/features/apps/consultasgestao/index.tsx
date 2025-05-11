@@ -191,8 +191,10 @@ export default function ConsultasPage() {
   // form helpers
   const prefillForm = (c: Consultation) => {
     setSelectedConsultationId(c.id_consulta);
-    setNewDate(c.consult_data);
-    setNewTime(c.consult_hora);
+    const isoDate = c.consult_data.split("T")[0];
+    setNewDate(isoDate);
+    const timeString = c.consult_hora ? c.consult_hora.substring(0, 5) : "";
+    setNewTime(timeString);
     setNewSpecialtyId(c.specialtyId);
     setSelectedDoctorId(c.doctorId);
     setDoctorSearch(c.doctorName);
@@ -200,6 +202,7 @@ export default function ConsultasPage() {
     setPatientSearch(c.patientName);
     setSelectedPatientCPF(c.patientCPF);
   };
+  
   const clearForm = () => {
     setSelectedConsultationId(null);
     setNewDate("");

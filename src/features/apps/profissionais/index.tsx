@@ -11,7 +11,6 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  TableCaption,
 } from "@/components/ui/table";
 import {
   Card,
@@ -28,11 +27,9 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -46,23 +43,8 @@ import { Header } from "@/components/layout/header";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 
-interface TopNavLink {
-  title: string;
-  href: string;
-  isActive: boolean;
-  disabled: boolean;
-}
-
-interface Cargo {
-  id_cargo: number;
-  cargo_nome: string;
-}
-
-interface Especialidade {
-  id_especialidade: number;
-  espec_nome: string;
-}
-
+interface Cargo { id_cargo: number; cargo_nome: string }
+interface Especialidade { id_especialidade: number; espec_nome: string }
 interface Professional {
   id_profissional: number;
   prof_nome: string;
@@ -73,639 +55,453 @@ interface Professional {
   prof_data_nascimento: string;
   prof_ativo: boolean;
   id_cargo: number;
-  cargo_nome?: string;
+  cargo_nome: string;
+  crm?: string;
+  id_especialidade?: number;
+  coren?: string;
 }
 
-interface Medico {
-  id_medico: number;
-  crm: string;
-  id_profissional: number;
-  id_especialidade: number;
-}
+const CPF_RE = /^\d{11}$/;
+const TEL_RE = /^\d{10,11}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const COREN_RE = /^\d{4,7}(?:\/[A-Z]{2})?$/;
+const DEFAULT_PASSWORD_MASK = "********";
 
-const topNavLinks: TopNavLink[] = [
-  { title: "Início", href: "/", isActive: true, disabled: false },
-  {
-    title: "Consultas",
-    href: "/consultasgestao",
-    isActive: true,
-    disabled: false,
-  },
-  { title: "Pacientes", href: "/pacientes", isActive: true, disabled: false },
-];
+const validarCPF = (c: string) => {
+  const cpf = c.replace(/\D/g, "");
+  if (!CPF_RE.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const calc = (m: number) => {
+    let s = 0;
+    for (let i = 0; i < m; i++) s += +cpf[i] * (m + 1 - i);
+    return ((s * 10) % 11) % 10;
+  };
+  return calc(9) === +cpf[9] && calc(10) === +cpf[10];
+};
+const formatCPF = (v: string) =>
+  v
+    .replace(/\D/g, "")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3-$4")
+    .slice(0, 14);
+const formatPhone = (v: string) =>
+  v
+    .replace(/\D/g, "")
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2")
+    .slice(0, 15);
+const isPastOrToday = (d: string) => new Date(d) <= new Date();
 
 export default function ProfissionaisPage() {
-  // Estados principais
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "active" | "inactive" | "all"
-  >("active");
-
-  // Diálogo de criar/editar
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] =
-    useState<"create" | "edit">("create");
-  const [selectedProfId, setSelectedProfId] =
-    useState<number | null>(null);
-
-  // Campos do formulário
-  const [profCPF, setProfCPF] = useState("");
-  const [profName, setProfName] = useState("");
-  const [profEmail, setProfEmail] = useState("");
-  const [profPassword, setProfPassword] = useState("");
-  const [profPhone, setProfPhone] = useState("");
-  const [profGender, setProfGender] = useState("");
-  const [profBirthDate, setProfBirthDate] = useState("");
-  const [profCargo, setProfCargo] = useState<number | "">("");
-  const [profCRM, setProfCRM] = useState("");
-  const [profEspecialidade, setProfEspecialidade] = useState<
-    number | ""
-  >("");
-  const [profMedicoId, setProfMedicoId] = useState<number | null>(null);
-
-  // Diálogo de inativar
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"active" | "inactive" | "all">("active");
+  const [dlgOpen, setDlgOpen] = useState(false);
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  const [selId, setSelId] = useState<number | null>(null);
+  const [cpf, setCpf] = useState("");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [fone, setFone] = useState("");
+  const [data, setData] = useState("");
+  const [genero, setGenero] = useState("");
+  const [cargoId, setCargoId] = useState<number | "">("");
+  const [crm, setCrm] = useState("");
+  const [espId, setEspId] = useState<number | "">("");
+  const [coren, setCoren] = useState("");
+  const [errs, setErrs] = useState<Record<string, string>>({});
   const [alertOpen, setAlertOpen] = useState(false);
-  const [profToDelete, setProfToDelete] = useState<Professional | null>(
-    null
-  );
+  const [toDelete, setToDelete] = useState<Professional | null>(null);
 
-  // Diálogo de cargos
-  const [cargoDialogOpen, setCargoDialogOpen] = useState(false);
-  const [cargoName, setCargoName] = useState("");
-  const [cargoEditingId, setCargoEditingId] =
-    useState<number | null>(null);
-
-  // Diálogo de acessos
-  const [accessDialogOpen, setAccessDialogOpen] = useState(false);
-  const [selectedAccessRole, setSelectedAccessRole] = useState("");
-  const [allowedAccesses, setAllowedAccesses] = useState<string[]>([]);
-  const ALL_ACCESS_OPTIONS = ["consultas", "pacientes", "admin"];
-
-  // Função para buscar profissionais no banco
-  function fetchProfessionals() {
-    const params = new URLSearchParams();
-    if (searchTerm) params.append("search", searchTerm);
-    if (roleFilter) params.append("cargo", roleFilter);
-    fetch(`/api/profissionais?${params.toString()}`)
-      .then((r) => r.json())
-      .then((data: Professional[]) => setProfessionals(data))
-      .catch(() => {});
-  }
-
-  // Carrega dados ao montar e sempre que searchTerm ou roleFilter mudam
+  const load = () =>
+    fetch("/api/profissionais").then((r) => r.json()).then(setProfessionals);
+  const loadCargos = () =>
+    fetch("/api/cargos").then((r) => r.json()).then(setCargos);
+  useEffect(() => { load(); }, []);
+  useEffect(() => { loadCargos(); }, []);
   useEffect(() => {
-    fetchProfessionals();
-  }, [searchTerm, roleFilter]);
-
-  // Carrega cargos e especialidades uma vez
-  useEffect(() => {
-    fetch("/api/cargos")
-      .then((r) => r.json())
-      .then(setCargos)
-      .catch(() => {});
-    fetch("/api/especialidades")
-      .then((r) => r.json())
-      .then(setEspecialidades)
-      .catch(() => {});
+    fetch("/api/especialidades").then((r) => r.json()).then(setEspecialidades);
   }, []);
 
-  // Quando abre edição, pré-carrega campos
-  useEffect(() => {
-    if (dialogMode === "edit" && selectedProfId !== null) {
-      const p = professionals.find(
-        (x) => x.id_profissional === selectedProfId
-      );
-      if (p) {
-        setProfCPF(p.prof_cpf);
-        setProfName(p.prof_nome);
-        setProfEmail(p.prof_email);
-        setProfPassword("");
-        setProfPhone(p.prof_telefone);
-        setProfGender(p.prof_genero);
-        setProfBirthDate(p.prof_data_nascimento);
-        setProfCargo(p.id_cargo);
-        setProfCRM("");
-        setProfEspecialidade("");
-        setProfMedicoId(null);
-        if ((p.cargo_nome || "").toLowerCase() === "médico") {
-          fetch(`/api/medicos?profissional=${selectedProfId}`)
-            .then((r) => r.json())
-            .then((meds: Medico[]) => {
-              if (meds.length) {
-                setProfCRM(meds[0].crm);
-                setProfEspecialidade(meds[0].id_especialidade);
-                setProfMedicoId(meds[0].id_medico);
-              }
-            })
-            .catch(() => {});
-        }
-      }
-    } else {
-      // limpa campos ao fechar ou modo create
-      setProfCPF("");
-      setProfName("");
-      setProfEmail("");
-      setProfPassword("");
-      setProfPhone("");
-      setProfGender("");
-      setProfBirthDate("");
-      setProfCargo("");
-      setProfCRM("");
-      setProfEspecialidade("");
-      setProfMedicoId(null);
+  const cargoNome = (id: number | "") =>
+    id === "" ? "" : cargos.find((c) => c.id_cargo === +id)?.cargo_nome ?? "";
+  const ehMedico = cargoNome(cargoId).toLowerCase() === "médico";
+  const ehEnfermeiro = cargoNome(cargoId).toLowerCase() === "enfermeiro";
+
+  const check = (f: string, v: string) => {
+    let m = "";
+    switch (f) {
+      case "cpf":
+        if (!v) m = "CPF é obrigatório.";
+        else if (!validarCPF(v)) m = "CPF inválido.";
+        break;
+      case "nome":
+        if (!v.trim()) m = "Nome é obrigatório.";
+        break;
+      case "email":
+        if (v && !EMAIL_RE.test(v)) m = "E-mail inválido.";
+        break;
+      case "fone":
+        if (v && !TEL_RE.test(v.replace(/\D/g, ""))) m = "Telefone inválido.";
+        break;
+      case "data":
+        if (!v) m = "Data de nascimento é obrigatória.";
+        else if (!isPastOrToday(v)) m = "Data não pode ser futura.";
+        break;
+      case "senha":
+        if (mode === "create" && !v) m = "Senha é obrigatória.";
+        else if (
+          mode === "edit" &&
+          v !== DEFAULT_PASSWORD_MASK &&
+          v.length > 0 &&
+          v.length < 6
+        )
+          m = "Senha deve ter ao menos 6 caracteres.";
+        break;
+      case "crm":
+        if (ehMedico && !v) m = "CRM é obrigatório.";
+        break;
+      case "coren":
+        if (ehEnfermeiro && !v) m = "COREN é obrigatório.";
+        else if (v && !COREN_RE.test(v)) m = "COREN inválido.";
+        break;
     }
-  }, [dialogMode, selectedProfId, professionals]);
-
-  // Busca nome do cargo por id
-  function buscarCargoNome(idCargo: number | ""): string {
-    if (idCargo === "") return "";
-    const c = cargos.find((x) => x.id_cargo === Number(idCargo));
-    return c ? c.cargo_nome : "";
-  }
-
-  // Checa se é médico
-  function cargoEhMedico(): boolean {
-    return buscarCargoNome(profCargo).toLowerCase() === "médico";
-  }
-
-  // Ações de UI
-  function openCreateDialog() {
-    setDialogMode("create");
-    setSelectedProfId(null);
-    setDialogOpen(true);
-  }
-  function openEditDialog(id: number) {
-    setDialogMode("edit");
-    setSelectedProfId(id);
-    setDialogOpen(true);
-  }
-  function openDeleteAlert(p: Professional) {
-    setProfToDelete(p);
-    setAlertOpen(true);
-  }
-
-  // Inativar (DELETE)
-  function handleConfirmDelete() {
-    if (!profToDelete) return;
-    fetch(`/api/profissionais/${profToDelete.id_profissional}`, {
-      method: "DELETE",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        fetchProfessionals();
-        setAlertOpen(false);
-      })
-      .catch(() => {});
-  }
-
-  // Reativar (PUT /:id/reativar)
-  function handleReactivate(id: number) {
-    fetch(`/api/profissionais/${id}/reativar`, {
-      method: "PUT",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        fetchProfessionals();
-      })
-      .catch(() => {});
-  }
-
-  // Filtra apenas por status (ativo/inativo)
-  const displayedProfessionals = professionals.filter((p) => {
-    return (
-      statusFilter === "all" ||
-      (statusFilter === "active" && p.prof_ativo) ||
-      (statusFilter === "inactive" && !p.prof_ativo)
-    );
-  });
-
-  // Submissão do form create/edit
-  const handleSubmitProfessional = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profCPF || !profName || !profEmail || !profBirthDate) return;
-
-    const url =
-      dialogMode === "create"
-        ? "/api/profissionais"
-        : `/api/profissionais/${selectedProfId}`;
-    const method = dialogMode === "create" ? "POST" : "PUT";
-    const payload: any = {
-      prof_nome: profName,
-      prof_cpf: profCPF,
-      prof_email: profEmail,
-      prof_telefone: profPhone,
-      prof_genero: profGender,
-      prof_data_nascimento: profBirthDate,
-      id_cargo: profCargo !== "" ? Number(profCargo) : null,
-    };
-    if (dialogMode === "create") {
-      if (!profPassword) return;
-      payload.prof_senha = profPassword;
-    } else if (profPassword) {
-      payload.prof_senha = profPassword;
-    }
-
-    // primeiro cria/atualiza o profissional
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error();
-    const data = dialogMode === "create" ? await res.json() : null;
-
-    // se for médico, sincroniza na tabela de médicos
-    if (cargoEhMedico()) {
-      if (dialogMode === "create" && data) {
-        await fetch("/api/medicos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            crm: profCRM,
-            id_especialidade: profEspecialidade,
-            id_profissional: data.id_profissional,
-          }),
-        });
-      } else if (dialogMode === "edit" && profMedicoId) {
-        await fetch(`/api/medicos/${profMedicoId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            crm: profCRM,
-            id_especialidade: profEspecialidade,
-          }),
-        });
-      }
-    }
-
-    setDialogOpen(false);
-    fetchProfessionals();
+    setErrs((p) => ({ ...p, [f]: m }));
   };
 
-  function handleAccessCheckboxChange(a: string) {
-    setAllowedAccesses((prev) =>
-      prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]
-    );
-  }
-  function handleSaveAccesses(e: React.FormEvent) {
-    e.preventDefault();
-    alert(
-      `Acessos salvos para o cargo ${selectedAccessRole}: ${allowedAccesses.join(
-        ", "
-      )}`
-    );
-    setAccessDialogOpen(false);
-  }
+  const h =
+    (f: string, set: (v: string) => void, fmt?: (v: string) => string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const v = fmt ? fmt(e.target.value) : e.target.value;
+      set(v);
+      check(f, v);
+    };
 
-  function openCargoDialog() {
-    setCargoDialogOpen(true);
-    setCargoEditingId(null);
-    setCargoName("");
-  }
-  function handleEditCargo(c: Cargo) {
-    setCargoEditingId(c.id_cargo);
-    setCargoName(c.cargo_nome);
-  }
-  function handleSaveCargo(e: React.FormEvent) {
+  const reset = () => {
+    setCpf("");
+    setNome("");
+    setEmail("");
+    setSenha("");
+    setFone("");
+    setData("");
+    setGenero("");
+    setCargoId("");
+    setCrm("");
+    setEspId("");
+    setCoren("");
+    setErrs({});
+  };
+
+  const openNew = () => {
+    reset();
+    setMode("create");
+    setSelId(null);
+    setDlgOpen(true);
+  };
+
+  const openEdit = (p: Professional) => {
+    reset();
+    setCpf(p.prof_cpf);
+    setNome(p.prof_nome);
+    setEmail(p.prof_email);
+    setFone(p.prof_telefone);
+    setData(new Date(p.prof_data_nascimento).toISOString().slice(0, 10));
+    setGenero(p.prof_genero);
+    setCargoId(p.id_cargo);
+    setCrm(p.crm || "");
+    setEspId(p.id_especialidade || "");
+    setCoren(p.coren || "");
+    setSenha(DEFAULT_PASSWORD_MASK);
+    setMode("edit");
+    setSelId(p.id_profissional);
+    setDlgOpen(true);
+  };
+
+  const valid = () =>
+    cpf &&
+    nome &&
+    data &&
+    cargoId !== "" &&
+    !Object.values(errs).some(Boolean) &&
+    (mode === "create" || senha === DEFAULT_PASSWORD_MASK || senha.length >= 6) &&
+    (!ehMedico || (crm && espId)) &&
+    (!ehEnfermeiro || coren);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cargoName) return;
-    const url = cargoEditingId
-      ? `/api/cargos/${cargoEditingId}`
-      : "/api/cargos";
-    const method = cargoEditingId ? "PUT" : "POST";
-    fetch(url, {
-      method,
+    ["cpf", "nome", "email", "fone", "data", "senha", "crm", "coren"].forEach(
+      (f) => {
+        const map: any = { cpf, nome, email, fone, data, senha, crm, coren };
+        check(f, map[f]);
+      }
+    );
+    if (!valid()) return;
+    const body: any = {
+      prof_nome: nome,
+      prof_cpf: cpf.replace(/\D/g, ""),
+      prof_email: email,
+      prof_telefone: fone,
+      prof_genero: genero,
+      prof_data_nascimento: data,
+      id_cargo: +cargoId,
+    };
+    if (mode === "create" || senha !== DEFAULT_PASSWORD_MASK) {
+      body.prof_senha = senha;
+    }
+    if (ehMedico) {
+      body.crm = crm;
+      body.id_especialidade = espId;
+    }
+    if (ehEnfermeiro) {
+      body.coren = coren;
+    }
+    const url =
+      mode === "create"
+        ? "/api/profissionais"
+        : `/api/profissionais/${selId}`;
+    const ok = await fetch(url, {
+      method: mode === "create" ? "POST" : "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cargo_nome: cargoName, id_profissional: 1 }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then(() => {
-        setCargoDialogOpen(false);
-        setCargoName("");
-      })
-      .catch(() => {});
-  }
-  function handleDeleteCargo(id: number) {
-    if (!confirm("Deseja excluir este cargo?")) return;
-    fetch(`/api/cargos/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_profissional: 1 }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-      })
-      .catch(() => {});
-  }
+      body: JSON.stringify(body),
+    }).then((r) => r.ok);
+    if (!ok) {
+      alert("Erro ao salvar, tente novamente.");
+      return;
+    }
+    setDlgOpen(false);
+    load();
+  };
+
+  const del = async () => {
+    if (!toDelete) return;
+    await fetch(
+      `/api/profissionais/${toDelete.id_profissional}`,
+      { method: "DELETE" }
+    );
+    setAlertOpen(false);
+    load();
+  };
 
   return (
     <>
       <Header>
-        <TopNav links={topNavLinks} />
+        <TopNav
+          links={[
+            { title: "Início", href: "/", isActive: true, disabled: false },
+            {
+              title: "Consultas",
+              href: "/consultasgestao",
+              isActive: false,
+              disabled: false,
+            },
+            {
+              title: "Pacientes",
+              href: "/pacientes",
+              isActive: true,
+              disabled: false,
+            },
+          ]}
+        />
         <div className="ml-auto flex items-center space-x-4">
           <ProfileDropdown />
         </div>
       </Header>
-
       <main className="p-4 space-y-6">
-        <h1 className="text-3xl font-bold font-quicksand">
-          Gerenciamento de Profissionais
-        </h1>
-
+        <h1 className="text-3xl font-bold">Gerenciamento de Profissionais</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Pesquisar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-48"
           />
           <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2 border rounded-md shadow-sm"
-          >
-            <option value="">Todos os Cargos</option>
-            {cargos.map((c) => (
-              <option key={c.id_cargo} value={c.cargo_nome}>
-                {c.cargo_nome}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
+            value={status}
             onChange={(e) =>
-              setStatusFilter(
-                e.target.value as "active" | "inactive" | "all"
-              )
+              setStatus(e.target.value as "active" | "inactive" | "all")
             }
-            className="px-3 py-2 border rounded-md shadow-sm"
+            className="px-3 py-2 border rounded-md"
           >
             <option value="active">Ativos</option>
             <option value="inactive">Inativos</option>
             <option value="all">Todos</option>
           </select>
-          <Button onClick={openCreateDialog}>Adicionar Profissional</Button>
-          <Button onClick={openCargoDialog}>Gerenciar Cargos</Button>
-          <Dialog
-            open={accessDialogOpen}
-            onOpenChange={setAccessDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button>Gerenciar Acessos</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg p-6">
-              <DialogHeader>
-                <DialogTitle>Gerenciar Acessos</DialogTitle>
-                <DialogDescription>
-                  Selecione o cargo e funcionalidades.
-                </DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={handleSaveAccesses}
-                className="space-y-4"
-              >
-                <Label>Cargo</Label>
-                <select
-                  value={selectedAccessRole}
-                  onChange={(e) =>
-                    setSelectedAccessRole(e.target.value)
-                  }
-                  className="px-2 py-1 border rounded-md"
-                >
-                  {cargos.map((c) => (
-                    <option key={c.id_cargo} value={c.cargo_nome}>
-                      {c.cargo_nome}
-                    </option>
-                  ))}
-                </select>
-                <fieldset>
-                  <legend className="text-sm mb-2">
-                    Funcionalidades
-                  </legend>
-                  {ALL_ACCESS_OPTIONS.map((ac) => (
-                    <label
-                      key={ac}
-                      className="flex items-center space-x-2"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={allowedAccesses.includes(ac)}
-                        onChange={() =>
-                          handleAccessCheckboxChange(ac)
-                        }
-                      />
-                      <span>{ac}</span>
-                    </label>
-                  ))}
-                </fieldset>
-                <DialogFooter>
-                  <Button type="submit" size="sm">
-                    Salvar
-                  </Button>
-                  <DialogClose asChild>
-                    <Button variant="outline" size="sm">
-                      Cancelar
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={openNew}>Adicionar Profissional</Button>
         </div>
-
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Profissionais Cadastrados</CardTitle>
+            <CardTitle>Profissionais</CardTitle>
             <CardDescription>
-              {statusFilter === "all"
-                ? `Total: ${displayedProfessionals.length}`
-                : statusFilter === "active"
-                ? `Ativos: ${displayedProfessionals.length}`
-                : `Inativos: ${displayedProfessionals.length}`}
+              {status === "all"
+                ? `Total: ${professionals.length}`
+                : status === "active"
+                ? `Ativos: ${professionals.filter((p) => p.prof_ativo).length}`
+                : `Inativos: ${
+                    professionals.filter((p) => !p.prof_ativo).length
+                  }`}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[450px]">
-              <Table className="w-full">
+              <Table className="w-full text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>CPF</TableHead>
                     <TableHead>Cargo</TableHead>
-                    <TableHead>Nascimento</TableHead>
+                    <TableHead>Nasc.</TableHead>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayedProfessionals.map((p) => (
-                    <TableRow
-                      key={p.id_profissional}
-                      className={
-                        !p.prof_ativo ? "bg-gray-100 opacity-60" : ""
-                      }
-                    >
-                      <TableCell>{p.prof_nome}</TableCell>
-                      <TableCell>{p.prof_cpf}</TableCell>
-                      <TableCell>{p.cargo_nome}</TableCell>
-                      <TableCell>
-                        {new Date(p.prof_data_nascimento)
-                          .toISOString()
-                          .slice(0, 10)
-                          .split("-")
-                          .reverse()
-                          .join("/")}
-                      </TableCell>
-                      <TableCell>{p.prof_email}</TableCell>
-                      <TableCell>{p.prof_telefone}</TableCell>
-                      <TableCell>
-                        {p.prof_ativo ? (
-                          <div className="flex gap-2">
+                  {professionals
+                    .filter(
+                      (p) =>
+                        status === "all" ||
+                        (status === "active" ? p.prof_ativo : !p.prof_ativo)
+                    )
+                    .filter(
+                      (p) =>
+                        p.prof_nome
+                          .toLowerCase()
+                          .includes(search.toLowerCase()) ||
+                        p.prof_cpf.includes(search.replace(/\D/g, ""))
+                    )
+                    .map((p) => (
+                      <TableRow
+                        key={p.id_profissional}
+                        className={!p.prof_ativo ? "bg-gray-100" : ""}
+                      >
+                        <TableCell>{p.prof_nome}</TableCell>
+                        <TableCell>{formatCPF(p.prof_cpf)}</TableCell>
+                        <TableCell>{p.cargo_nome}</TableCell>
+                        <TableCell>
+                          {new Date(
+                            p.prof_data_nascimento
+                          ).toLocaleDateString("pt-BR")}
+                        </TableCell>
+                        <TableCell>{p.prof_email}</TableCell>
+                        <TableCell>
+                          {formatPhone(p.prof_telefone)}
+                        </TableCell>
+                        <TableCell>
+                          {p.prof_ativo ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEdit(p)}
+                            >
+                              Editar
+                            </Button>
+                          ) : (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() =>
-                                openEditDialog(p.id_profissional)
+                                fetch(
+                                  `/api/profissionais/${p.id_profissional}/reativar`,
+                                  { method: "PUT" }
+                                ).then(load)
                               }
                             >
-                              Editar
+                              Reativar
                             </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() =>
-                                    openDeleteAlert(p)
-                                  }
-                                >
-                                  Inativar
-                                </Button>
-                              </AlertDialogTrigger>
-                            </AlertDialog>
-                          </div>
-                        ) : (
+                          )}
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleReactivate(p.id_profissional)
-                            }
+                            variant="destructive"
+                            className="ml-2"
+                            onClick={() => {
+                              setToDelete(p);
+                              setAlertOpen(true);
+                            }}
                           >
-                            Reativar
+                            Inativar
                           </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {displayedProfessionals.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-4 text-center"
-                      >
-                        Nenhum profissional encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
-                <TableCaption className="text-sm text-muted-foreground mt-2">
-                  Total de {displayedProfessionals.length} profissional(is)
-                </TableCaption>
               </Table>
             </ScrollArea>
           </CardContent>
         </Card>
       </main>
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[800px] w-full max-h-[85vh] overflow-y-auto">
+      <Dialog open={dlgOpen} onOpenChange={setDlgOpen}>
+        <DialogContent className="max-w-[800px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {dialogMode === "create"
-                ? "Adicionar Profissional"
-                : "Editar Profissional"}
+              {mode === "create" ? "Adicionar" : "Editar"} Profissional
             </DialogTitle>
-            <DialogDescription>
-              Preencha os campos obrigatórios
-            </DialogDescription>
+            <DialogDescription>Campos * são obrigatórios.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitProfessional}>
+          <form onSubmit={submit}>
             <div className="grid gap-4 py-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col gap-1">
                 <Label>CPF *</Label>
-                <Input
-                  required
-                  value={profCPF}
-                  onChange={(e) => setProfCPF(e.target.value)}
-                />
+                <Input value={formatCPF(cpf)} onChange={h("cpf", setCpf, formatCPF)} />
+                {errs.cpf && <p className="text-red-600 text-sm">{errs.cpf}</p>}
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Nome *</Label>
-                <Input
-                  required
-                  value={profName}
-                  onChange={(e) => setProfName(e.target.value)}
-                />
+                <Input value={nome} onChange={h("nome", setNome)} />
+                {errs.nome && <p className="text-red-600 text-sm">{errs.nome}</p>}
               </div>
               <div className="flex flex-col gap-1">
-                <Label>E-mail *</Label>
-                <Input
-                  type="email"
-                  required
-                  value={profEmail}
-                  onChange={(e) => setProfEmail(e.target.value)}
-                />
+                <Label>E-mail</Label>
+                <Input value={email} onChange={h("email", setEmail)} />
+                {errs.email && <p className="text-red-600 text-sm">{errs.email}</p>}
               </div>
               <div className="flex flex-col gap-1">
-                <Label>Senha {dialogMode === "create" && "*"}</Label>
+                <Label>Senha {mode === "create" && "*"}</Label>
                 <Input
                   type="password"
-                  required={dialogMode === "create"}
-                  value={profPassword}
-                  onChange={(e) => setProfPassword(e.target.value)}
+                  value={senha}
+                  onChange={h("senha", setSenha)}
                 />
+                {errs.senha && (
+                  <p className="text-red-600 text-sm">{errs.senha}</p>
+                )}
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Telefone</Label>
                 <Input
-                  value={profPhone}
-                  onChange={(e) => setProfPhone(e.target.value)}
+                  value={formatPhone(fone)}
+                  onChange={h("fone", setFone, formatPhone)}
                 />
+                {errs.fone && <p className="text-red-600 text-sm">{errs.fone}</p>}
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Data de Nascimento *</Label>
-                <Input
-                  type="date"
-                  required
-                  value={profBirthDate}
-                  onChange={(e) => setProfBirthDate(e.target.value)}
-                />
+                <Input type="date" value={data} onChange={h("data", setData)} />
+                {errs.data && <p className="text-red-600 text-sm">{errs.data}</p>}
               </div>
               <div className="flex flex-col gap-1">
-                <Label>Gênero</Label>
-                <Input
-                  value={profGender}
-                  onChange={(e) => setProfGender(e.target.value)}
-                />
-              </div>
+  <Label>Gênero</Label>
+  <select
+    className="px-3 py-2 border rounded-md"
+    value={genero}
+    onChange={(e) => setGenero(e.target.value)}
+  >
+    <option value="">Selecione…</option>
+    <option value="M">Masculino</option>
+    <option value="F">Feminino</option>
+    <option value="O">Outros</option>
+  </select>
+</div>
               <div className="flex flex-col gap-1">
-                <Label>Cargo</Label>
+                <Label>Cargo *</Label>
                 <select
-                  className="px-3 py-2 border rounded-md shadow-sm"
-                  value={profCargo}
-                  onChange={(e) => setProfCargo(Number(e.target.value))}
+                  className="px-3 py-2 border rounded-md"
+                  value={cargoId}
+                  onChange={(e) => setCargoId(+e.target.value)}
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">Selecione…</option>
                   {cargos.map((c) => (
                     <option key={c.id_cargo} value={c.id_cargo}>
                       {c.cargo_nome}
@@ -713,45 +509,45 @@ export default function ProfissionaisPage() {
                   ))}
                 </select>
               </div>
-              {cargoEhMedico() && (
+              {ehMedico && (
                 <>
                   <div className="flex flex-col gap-1">
                     <Label>CRM *</Label>
-                    <Input
-                      required
-                      value={profCRM}
-                      onChange={(e) => setProfCRM(e.target.value)}
-                    />
+                    <Input value={crm} onChange={h("crm", setCrm)} />
+                    {errs.crm && (
+                      <p className="text-red-600 text-sm">{errs.crm}</p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label>Especialidade *</Label>
                     <select
-                      required
-                      className="px-3 py-2 border rounded-md shadow-sm"
-                      value={profEspecialidade}
-                      onChange={(e) =>
-                        setProfEspecialidade(
-                          e.target.value ? Number(e.target.value) : ""
-                        )
-                      }
+                      className="px-3 py-2 border rounded-md"
+                      value={espId}
+                      onChange={(e) => setEspId(+e.target.value)}
                     >
-                      <option value="">Selecione...</option>
-                      {especialidades.map((esp) => (
-                        <option
-                          key={esp.id_especialidade}
-                          value={esp.id_especialidade}
-                        >
-                          {esp.espec_nome}
+                      <option value="">Selecione…</option>
+                      {especialidades.map((e) => (
+                        <option key={e.id_especialidade} value={e.id_especialidade}>
+                          {e.espec_nome}
                         </option>
                       ))}
                     </select>
                   </div>
                 </>
               )}
+              {ehEnfermeiro && (
+                <div className="flex flex-col gap-1">
+                  <Label>COREN *</Label>
+                  <Input value={coren} onChange={h("coren", setCoren)} />
+                  {errs.coren && (
+                    <p className="text-red-600 text-sm">{errs.coren}</p>
+                  )}
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button type="submit">
-                {dialogMode === "create" ? "Adicionar" : "Salvar"}
+              <Button type="submit" disabled={!valid()}>
+                Salvar
               </Button>
               <DialogClose asChild>
                 <Button variant="outline">Cancelar</Button>
@@ -760,95 +556,20 @@ export default function ProfissionaisPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Inativação AlertDialog */}
       <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Inativar Profissional?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação tornará o profissional inativo.
-            </AlertDialogDescription>
           </AlertDialogHeader>
+          <AlertDialogDescription>
+            Você poderá reativá-lo depois, se necessário.
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              Inativar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={del}>Inativar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Gerenciar Cargos Dialog */}
-      <Dialog open={cargoDialogOpen} onOpenChange={setCargoDialogOpen}>
-        <DialogContent className="max-w-[700px] w-full">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Cargos</DialogTitle>
-            <DialogDescription>
-              Crie, edite ou exclua cargos
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <ScrollArea className="h-[200px]">
-              <Table className="w-full table-auto text-sm">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Cargo</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cargos.map((c) => (
-                    <TableRow key={c.id_cargo}>
-                      <TableCell>{c.id_cargo}</TableCell>
-                      <TableCell>{c.cargo_nome}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditCargo(c)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteCargo(c.id_cargo)}
-                          className="ml-2"
-                        >
-                          Inativar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {cargos.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center">
-                        Nenhum cargo cadastrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-            <form onSubmit={handleSaveCargo} className="space-y-2">
-              <Label>Nome do Cargo</Label>
-              <Input
-                value={cargoName}
-                onChange={(e) => setCargoName(e.target.value)}
-              />
-              <DialogFooter>
-                <Button type="submit">
-                  {cargoEditingId
-                    ? "Salvar alterações"
-                    : "Adicionar Cargo"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
