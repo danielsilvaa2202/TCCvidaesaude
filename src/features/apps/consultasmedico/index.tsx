@@ -21,7 +21,10 @@ interface AlergiaRow { id_histmed: number; alergia_nome: string; alergia_cid: st
 interface Prescricao { id_histmed: number; hist_prescricao: string; }
 interface MedHist { id_histmed: number; id_medicamento: number; medicamento_nome: string; medicamento_posologia: string; duracao: string; }
 interface MedList { id_medicamento: number; medicamento_nome: string; }
-interface DurList { id_duracao_med: number; id_medicamento: number; duracao: string; }
+interface DurList { 
+  id_duracao: number;
+  descricao_duracao: string;
+}
 interface PosologiaOpt { id_posologia: number; descricao_posologia: string; posologia_livre: number; }
 interface DoencaRow { id_histmed: number; doenca_nome: string; doenca_cid: string; }
 interface DoencaFamiliar { id_histmed: number; doenca_familiar_nome: string; }
@@ -96,7 +99,7 @@ export default function ConsultaGestaoPage() {
       })));
     });
     fetch("/api/medicamentos").then(r => r.json()).then(setMedicamentosList);
-    fetch("/api/duracoes-medicamento").then(r => r.json()).then(setDuracoesList);
+    fetch("/api/duracoes").then(r => r.json()).then(setDuracoesList);
     fetch("/api/posologias").then(r => r.json()).then(setPosologiasList);
     fetch("/api/alergias").then(r => r.json()).then(setAlergiasOpcoes);
     fetch("/api/doencas").then(r => r.json()).then(setDoencasOpcoes);
@@ -265,16 +268,16 @@ export default function ConsultaGestaoPage() {
     return;
   }
 
-  fetch(`/api/historico-medico/${historico[0].id_histmed}/medicamentos`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id_medicamento: Number(novaMedId),
-      id_duracao_med: Number(novaDurId),
-      posologia_livre: isPosologiaLivre ? 1 : 0,
-      descricao_posologia: posologiaDescricao,
-    }),
-  })
+ fetch(`/api/historico-medico/${historico[0].id_histmed}/medicamentos`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    id_medicamento: Number(novaMedId),
+    id_duracao_med: Number(novaDurId),
+    posologia_livre: isPosologiaLivre ? 1 : 0,
+    descricao_posologia: posologiaDescricao,
+  }),
+})
     .then(r => {
       if (!r.ok) throw new Error();
     })
@@ -555,11 +558,19 @@ export default function ConsultaGestaoPage() {
     className="w-48"
   />
 )}
-
-                  <select value={novaDurId} onChange={e => setNovaDurId(Number(e.target.value))} className="border px-2 py-1 rounded" disabled={!novaMedId}>
-                    <option value="">Duração…</option>
-                    {duracoesList.filter(d => d.id_medicamento === Number(novaMedId)).map(d => <option key={d.id_duracao_med} value={d.id_duracao_med}>{d.duracao}</option>)}
-                  </select>
+<select
+  value={novaDurId}
+  onChange={e => setNovaDurId(Number(e.target.value))}
+  className="border px-2 py-1 rounded"
+  disabled={!novaMedId}
+>
+  <option value="">Duração…</option>
+  {duracoesList.map(d => (
+    <option key={d.id_duracao} value={d.id_duracao}>
+      {d.descricao_duracao}
+    </option>
+  ))}
+</select>
 
                   <Button onClick={addMedicamento} disabled={!novaMedId || !novaDurId || !novaPosId || (posologiaLivreObrigatoria && !textoPosLivre)}>Adicionar</Button>
                 </div>
