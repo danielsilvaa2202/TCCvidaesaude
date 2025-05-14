@@ -76,49 +76,119 @@ interface Professional {
 }
 
 
-/* -------------------------------------------------------------------------- */
-/*                              Constantes RE                                 */
-/* -------------------------------------------------------------------------- */
-
-const CPF_RE = /^\d{11}$/;
-const TEL_RE = /^\d{10,11}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COREN_RE = /^\d{4,7}(?:\/[A-Z]{2})?$/;
 const DEFAULT_PASSWORD_MASK = "********";
 const ALL_ACCESS_OPTIONS = ["consultas", "pacientes", "admin"] as const;
+const CPF_RE = /^\d{11}$/;
+const VALID_DDDS = [
+  "11","12","13","14","15","16","17","18","19",
+  "21","22","24","27","28",
+  "31","32","33","34","35","37","38",
+  "41","42","43","44","45","46","47","48","49",
+  "51","53","54","55",
+  "61","62","64","63","65","66","67","68","69",
+  "71","73","74","75","77","79",
+  "81","82","83","84","85","86","87","88","89",
+  "91","92","93","94","95","96","97","98","99"
+];
+const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 
-/* -------------------------------------------------------------------------- */
-/*                              Funções util                                  */
-/* -------------------------------------------------------------------------- */
-
-const validarCPF = (c: string) => {
+export const validarCPF = (c: string): boolean => {
   const cpf = c.replace(/\D/g, "");
-  if (!CPF_RE.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  if (!CPF_RE.test(cpf)) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
   const calc = (m: number) => {
     let s = 0;
-    for (let i = 0; i < m; i++) s += +cpf[i] * (m + 1 - i);
+    for (let i = 0; i < m; i++) {
+      s += +cpf[i] * (m + 1 - i);
+    }
     return ((s * 10) % 11) % 10;
   };
   return calc(9) === +cpf[9] && calc(10) === +cpf[10];
 };
-const formatCPF = (v: string) =>
+
+export const formatCPF = (v: string): string =>
   v
     .replace(/\D/g, "")
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
     .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3-$4")
     .slice(0, 14);
-const formatPhone = (v: string) =>
+
+export const formatPhone = (v: string): string =>
   v
     .replace(/\D/g, "")
     .replace(/(\d{2})(\d)/, "($1) $2")
     .replace(/(\d{5})(\d)/, "$1-$2")
     .slice(0, 15);
-const isPastOrToday = (d: string) => new Date(d) <= new Date();
 
-/* -------------------------------------------------------------------------- */
-/*                        Componente principal                                */
-/* -------------------------------------------------------------------------- */
+export const validarEmail = (v: string): boolean => {
+  const email = v.trim();
+  if (!email) return false;
+  if (email !== email.toLowerCase() || /\s/.test(email)) return false;
+  const partes = email.split("@");
+  if (partes.length !== 2) return false;
+  const [local, dominio] = partes;
+  if (
+    local.length > 64 ||
+    !/^[a-z0-9](?:[a-z0-9._%+-]{0,62}[a-z0-9])?$/.test(local) ||
+    /\.\./.test(local)
+  ) return false;
+  const labels = dominio.split(".");
+  if (
+    labels.length < 2 ||
+    labels.some(
+      lab =>
+        lab.length < 2 ||
+        lab.length > 63 ||
+        !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(lab)
+    )
+  ) return false;
+  return true;
+};
+
+export const validarTelefone = (v: string): boolean => {
+  const nums = v.replace(/\D/g, "");
+  if (!(nums.length === 10 || nums.length === 11)) return false;
+  const ddd = nums.slice(0, 2);
+  if (!VALID_DDDS.includes(ddd)) return false;
+  const body = nums.slice(2);
+  if (/^(\d)\1+$/.test(body)) return false;
+  if (nums.length === 11) {
+    if (nums[2] !== "9") return false;
+  } else {
+    if (!/[2-8]/.test(nums[2])) return false;
+  }
+  return true;
+};
+
+export const getTelefoneError = (v: string): string => {
+  const nums = v.replace(/\D/g, "");
+  if (!nums) return "Telefone é obrigatório.";
+  if (!(nums.length === 10 || nums.length === 11))
+    return "Use 10 dígitos (fixo) ou 11 dígitos (móvel).";
+  const ddd = nums.slice(0, 2);
+  if (!VALID_DDDS.includes(ddd)) return `DDD "${ddd}" inválido.`;
+  const body = nums.slice(2);
+  if (/^(\d)\1+$/.test(body)) return "Não use todos os dígitos iguais.";
+  if (nums.length === 11) {
+    if (nums[2] !== "9") return 'Em celular (11 dígitos), o 3º dígito deve ser "9".';
+  } else {
+    if (!/[2-8]/.test(nums[2])) return "Em fixo (10 dígitos), o 3º dígito deve ser 2–8.";
+  }
+  return "";
+};
+
+export const getSenhaError = (v: string, mode: "create" | "edit"): string => {
+  if (mode === "create" && !v) return "Senha é obrigatória.";
+  if (mode === "edit" && v === DEFAULT_PASSWORD_MASK) return "";
+  if (v.length < 6) return "Mínimo 6 caracteres.";
+  if (!/[A-Z]/.test(v)) return "Falta ao menos 1 letra maiúscula.";
+  if (!/[a-z]/.test(v)) return "Falta ao menos 1 letra minúscula.";
+  if (!/\d/.test(v)) return "Falta ao menos 1 dígito.";
+  if (!/[^A-Za-z0-9]/.test(v)) return "Falta ao menos 1 caractere especial.";
+  return "";
+};
 
 export default function ProfissionaisPage() {
   /* ------------------------------ estados base --------------------------- */
@@ -199,44 +269,85 @@ export default function ProfissionaisPage() {
 
  const check = (f: string, v: string) => {
   let m = "";
+  const val = v.trim();
+
+  if (["nome", "email", "fone", "crm", "coren"].includes(f)) {
+    if (v !== val) {
+      m = "Remova espaços no início/fim.";
+      setErrs(p => ({ ...p, [f]: m }));
+      return;
+    }
+    if (/\s{2,}/.test(v)) {
+      m = "Não use espaços duplos.";
+      setErrs(p => ({ ...p, [f]: m }));
+      return;
+    }
+  }
+
   switch (f) {
-    case "cpf":
-      if (!v) m = "CPF é obrigatório.";
-      else if (!validarCPF(v)) m = "CPF inválido.";
-      break;
     case "nome":
-      if (!v.trim()) m = "Nome é obrigatório.";
+      if (!val) m = "Nome é obrigatório.";
+      else {
+        const parts = val.split(" ");
+        if (parts.length < 2) m = "Informe nome e sobrenome.";
+        else if (parts.some(p => p.length < 3)) m = "Cada parte ≥3 letras.";
+        else if (!parts.every(p => /^[A-ZÀ-Ÿ][a-zà-ÿ]+$/.test(p)))
+          m = "Cada parte inicia com maiúscula e só letras.";
+      }
       break;
+
     case "email":
-      if (v && !EMAIL_RE.test(v)) m = "E-mail inválido.";
+      if (!val) m = "E-mail é obrigatório.";
+      else if (!validarEmail(val)) m = "Formato de e-mail inválido.";
       break;
+
     case "fone":
-      if (v && !TEL_RE.test(v.replace(/\D/g, ""))) m = "Telefone inválido.";
+      m = getTelefoneError(v);
       break;
-    case "data":
-      if (!v) m = "Data de nascimento é obrigatória.";
-      else if (!isPastOrToday(v)) m = "Data não pode ser futura.";
-      break;
+
     case "senha":
-      if (mode === "create" && !v) m = "Senha é obrigatória.";
-      else if (
-        v &&                       // só valida se digitou algo
-        v !== DEFAULT_PASSWORD_MASK &&
-        v.length < 6
-      )
-        m = "Senha deve ter ao menos 6 caracteres.";
+      m = getSenhaError(v, mode);
       break;
+
+    case "cpf":
+      if (!val) m = "CPF é obrigatório.";
+      else if (!validarCPF(val)) m = "CPF inválido.";
+      break;
+
+    case "data": {
+      if (!val) m = "Data de nascimento é obrigatória.";
+      else {
+        const hoje = new Date();
+        const nasc = new Date(val);
+        if (nasc > hoje) m = "Data não pode ser futura.";
+        else {
+          let idade = hoje.getFullYear() - nasc.getFullYear();
+          const mm = hoje.getMonth() - nasc.getMonth();
+          if (mm < 0 || (mm === 0 && hoje.getDate() < nasc.getDate())) idade--;
+          if (idade < 18) m = "Mínimo 18 anos.";
+          else if (idade > 100) m = "Idade não pode ser >100 anos.";
+        }
+      }
+      break;
+    }
+
     case "crm":
-      if (ehMedico && !v) m = "CRM é obrigatório.";
+      if (ehMedico) {
+        if (!val) m = "CRM é obrigatório.";
+        else if (!COREN_RE.test(val)) m = "CRM inválido.";
+      }
       break;
+
     case "coren":
-      if (ehEnfermeiro && !v) m = "COREN é obrigatório.";
-      else if (v && !COREN_RE.test(v)) m = "COREN inválido.";
+      if (ehEnfermeiro) {
+        if (!val) m = "COREN é obrigatório.";
+        else if (!COREN_RE.test(val)) m = "COREN inválido.";
+      }
       break;
   }
-  setErrs((p) => ({ ...p, [f]: m }));
-};
 
+  setErrs(p => ({ ...p, [f]: m }));
+};
 
   const h =
     (f: string, set: (v: string) => void, fmt?: (v: string) => string) =>
@@ -291,15 +402,18 @@ export default function ProfissionaisPage() {
 
 
 const valid = () =>
-  cpf &&
-  nome &&
-  data &&
-  cargoId !== "" &&
-  !Object.values(errs).some(Boolean) &&
-  (mode === "create" ? senha.length >= 6 : true) &&
-  (!ehMedico || (crm && espId)) &&
-  (!ehEnfermeiro || coren);
-
+  !!(
+    cpf &&
+    nome &&
+    email &&
+    fone &&
+    data &&
+    cargoId !== "" &&
+    !Object.values(errs).some(e => e) &&
+    (mode === "create" ? senha.length >= 6 : true) &&
+    (!ehMedico || (crm && espId)) &&
+    (!ehEnfermeiro || coren)
+  );
 
   /* -------------------------- submit profissional ----------------------- */
 

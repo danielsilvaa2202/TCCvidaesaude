@@ -6,10 +6,40 @@ import { FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableCaption,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Header } from "@/components/layout/header";
@@ -23,7 +53,7 @@ interface StatusConsulta { id_consult_status: number; status_consulta: string; }
 interface Alergia { id_alergia: number; alergia_nome: string; alergia_cid: string; }
 interface Doenca { id_doenca: number; doenca_nome: string; doenca_cid: string; }
 interface DoencaFamiliar { id_doenca_familiar: number; doenca_familiar_nome: string; }
-interface Medicamento { id_medicamento: number; medicamento_nome: string; }
+interface Medicamento { id_medicamento: number; medicamento_nome: string; posologia_livre: string; }
 interface Posologia { id_posologia: number; descricao_posologia: string; }
 interface Duracao { id_duracao: number; descricao_duracao: string; }
 
@@ -61,6 +91,8 @@ export default function AuxiliaresPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [nome, setNome] = useState("");
   const [campo2, setCampo2] = useState("");
+  const [nomeError, setNomeError] = useState("");
+  const [campo2Error, setCampo2Error] = useState("");
   const [alertOpen, setAlertOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("Especialidades");
 
@@ -68,7 +100,9 @@ export default function AuxiliaresPage() {
   const [pageMap, setPageMap] = useState<Record<string, number>>({});
   const pageSize = 8;
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   function fetchAll() {
     fetch("/api/especialidades").then(r => r.json()).then(setEspecialidades);
@@ -120,13 +154,17 @@ export default function AuxiliaresPage() {
 
   const filtered = useMemo(() => {
     const t = search.toLowerCase();
-    return datasets[currentTab].filter(o => Object.values(o).some(v => String(v).toLowerCase().includes(t)));
+    return datasets[currentTab].filter(o =>
+      Object.values(o).some(v => String(v).toLowerCase().includes(t))
+    );
   }, [datasets, currentTab, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const page = pageMap[currentTab] ?? 1;
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-  function setPage(n: number) { setPageMap(p => ({ ...p, [currentTab]: n })); }
+  function setPage(n: number) {
+    setPageMap(p => ({ ...p, [currentTab]: n }));
+  }
 
   function exportXlsx() {
     const ws = XLSX.utils.json_to_sheet(filtered);
@@ -136,26 +174,47 @@ export default function AuxiliaresPage() {
   }
 
   function openCreate(tab: string) {
-    setDialogMode("create"); setSelectedId(null); setNome(""); setCampo2(""); setCurrentTab(tab); setDialogOpen(true);
+    setDialogMode("create");
+    setSelectedId(null);
+    setNome("");
+    setCampo2("");
+    setNomeError("");
+    setCampo2Error("");
+    setCurrentTab(tab);
+    setDialogOpen(true);
   }
+
   function openEdit(tab: string, id: number, data: any) {
-    setDialogMode("edit"); setSelectedId(id); setNome(data.nome); setCampo2(data.campo2 || ""); setCurrentTab(tab); setDialogOpen(true);
+    setDialogMode("edit");
+    setSelectedId(id);
+    setNome(data.nome);
+    setCampo2(data.campo2 || "");
+    setNomeError(validateNome(data.nome, tab));
+    setCampo2Error(validateCampo2(data.campo2 || "", tab));
+    setCurrentTab(tab);
+    setDialogOpen(true);
   }
 
   async function handleDelete() {
     if (!selectedId) return;
     await fetch(`/api/${apiMap[currentTab]}/${selectedId}`, { method: "DELETE" });
-    setAlertOpen(false); fetchAll();
+    setAlertOpen(false);
+    fetchAll();
   }
 
   function buildPayload() {
     switch (currentTab) {
-      case "Medicamentos": return { medicamento_nome: nome, posologia_livre: campo2 };
-      case "Alergias": return { alergia_nome: nome, alergia_cid: campo2.toUpperCase() };
-      case "Doencas": return { doenca_nome: nome, doenca_cid: campo2.toUpperCase() };
-      case "Posologias": return { descricao_posologia: nome };
-      case "Duracoes": return { descricao_duracao: nome };
-      default: return { [labelsMap[currentTab].fields[1]]: nome };
+      case "Alergias":
+        return { alergia_nome: nome.trim(), alergia_cid: campo2.toUpperCase().trim() };
+      case "Doencas":
+        return { doenca_nome: nome.trim(), doenca_cid: campo2.toUpperCase().trim() };
+      case "Posologias":
+        return { descricao_posologia: nome.trim() };
+      case "Duracoes":
+        return { descricao_duracao: nome.trim() };
+      default:
+        // Especialidades, TiposConsulta, StatusConsulta, DoencasFamiliares, Medicamentos
+        return { [labelsMap[currentTab].fields[1]]: nome.trim() };
     }
   }
 
@@ -163,24 +222,105 @@ export default function AuxiliaresPage() {
     e.preventDefault();
     const endpoint = apiMap[currentTab];
     const method = dialogMode === "create" ? "POST" : "PUT";
-    const url = dialogMode === "create" ? `/api/${endpoint}` : `/api/${endpoint}/${selectedId}`;
+    const url =
+      dialogMode === "create"
+        ? `/api/${endpoint}`
+        : `/api/${endpoint}/${selectedId}`;
     setDialogOpen(false);
-    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildPayload()),
+    });
     fetchAll();
   }
 
-  const namePattern = "(?=.*[A-Za-zÀ-ÿ]).{3,100}";
+  // Patterns mais restritos
+  const namePatterns = {
+    textOnly: {
+      rx: /^(?=.{3,100}$)(?!.*\s{2})[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/,
+      msg: "3–100 letras, espaços simples ou hífen/apos.; sem dígitos"
+    },
+    alphaNum: {
+      rx: /^(?=.{3,100}$)[A-Za-zÀ-ÖØ-öø-ÿ0-9]+(?:[ '-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*$/,
+      msg: "3–100 alfanum., espaços simples ou hífen/apos."
+    },
+    posologia: {
+      rx: /^(?=.{3,200}$)[A-Za-zÀ-ÖØ-öø-ÿ0-9 ()\/\-,\.]+$/,
+      msg: "3–200 caracs.: letras, números, espaços, ()/-,."
+    },
+    duracao: {
+      rx: /^(?=.{1,50}$)[A-Za-zÀ-ÖØ-öø-ÿ0-9 ]+$/,
+      msg: "1–50 alfanum. e espaços"
+    },
+    cid10: {
+      rx: /^[A-TV-Z]\d{2}(?:\.\d{1,2})?$/,
+      msg: "CID-10 (ex: J30 ou E11.9)"
+    }
+  };
+
+  function validateNome(v: string, tab: string) {
+    if (!v.trim()) return "Campo obrigatório";
+    const p = ["Especialidades","TiposConsulta","StatusConsulta","DoencasFamiliares","Alergias","Doencas"]
+      .includes(tab)
+      ? namePatterns.textOnly
+      : tab === "Medicamentos"
+      ? namePatterns.alphaNum
+      : tab === "Posologias"
+      ? namePatterns.posologia
+      : namePatterns.duracao;
+    if (!p.rx.test(v.trim())) return p.msg;
+    return "";
+  }
+
+  function validateCampo2(v: string, tab: string) {
+    if (!["Alergias","Doencas"].includes(tab)) return "";
+    if (!v.trim()) return "Campo obrigatório";
+    if (!namePatterns.cid10.rx.test(v.trim())) return namePatterns.cid10.msg;
+    return "";
+  }
+
+  function onNomeChange(v: string) {
+    setNome(v);
+    setNomeError(validateNome(v, currentTab));
+  }
+  function onCampo2Change(v: string) {
+    setCampo2(v);
+    setCampo2Error(validateCampo2(v, currentTab));
+  }
+
+  const requiresCampo2 = ["Alergias","Doencas"].includes(currentTab);
+  const isSubmitDisabled =
+    !nome.trim() || !!nomeError || (requiresCampo2 && (!campo2.trim() || !!campo2Error));
 
   return (
     <>
-      <Header><TopNav links={topNavLinks} /><div className="ml-auto pr-4"><ProfileDropdown /></div></Header>
+      <Header>
+        <TopNav links={topNavLinks} />
+        <div className="ml-auto pr-4">
+          <ProfileDropdown />
+        </div>
+      </Header>
 
       <main className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Cadastro Auxiliares - Administrador</h1>
+        <h1 className="text-3xl font-bold mb-6">
+          Cadastro Auxiliares - Administrador
+        </h1>
 
-        <Tabs value={currentTab} onValueChange={t => { setCurrentTab(t); setSearch(""); setPage(1); }}>
-          <TabsList className="flex flex-wrap gap-2 mb-4">
-            {Object.keys(apiMap).map(tab => <TabsTrigger key={tab} value={tab}>{tabLabels[tab]}</TabsTrigger>)}
+        <Tabs
+          value={currentTab}
+          onValueChange={t => {
+            setCurrentTab(t);
+            setSearch("");
+            setPage(1);
+          }}
+        >
+          <TabsList className="flex gap-2 mb-4 overflow-x-auto max-w-full">
+            {Object.keys(apiMap).map(tab => (
+              <TabsTrigger key={tab} value={tab}>
+                {tabLabels[tab]}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {Object.keys(apiMap).map(tab => (
@@ -188,27 +328,95 @@ export default function AuxiliaresPage() {
               <Card className="shadow-md">
                 <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex gap-2 items-center w-full">
-                    <Input placeholder="Pesquisar..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="flex-1 md:w-72" />
-                    <Button variant="secondary" onClick={exportXlsx} className="flex gap-1"><FileSpreadsheet size={16}/>XLSX</Button>
-                    <Button onClick={() => openCreate(tab)}>Adicionar</Button>
+                    <Input
+                      placeholder="Pesquisar..."
+                      value={search}
+                      onChange={e => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                      }}
+                      className="flex-1 md:w-72"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={exportXlsx}
+                      className="flex gap-1"
+                    >
+                      <FileSpreadsheet size={16} /> XLSX
+                    </Button>
+                    <Button onClick={() => openCreate(tab)}>
+                      Adicionar
+                    </Button>
                   </div>
                 </CardHeader>
+
                 <Separator />
+
                 <CardContent>
                   <ScrollArea className="max-h-[480px]">
                     <Table>
-                      <TableHeader><TableRow>{labelsMap[tab].head.map(h => <TableHead key={h}>{h}</TableHead>)}<TableHead>Ações</TableHead></TableRow></TableHeader>
+                      <TableHeader>
+                        <TableRow>
+                          {labelsMap[tab].head.map(h => (
+                            <TableHead key={h}>{h}</TableHead>
+                          ))}
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
                       <TableBody>
                         {paginated.map(item => (
-                          <TableRow key={item[labelsMap[tab].fields[0]]}>
-                            {labelsMap[tab].fields.map(f => <TableCell key={f}>{item[f]}</TableCell>)}
+                          <TableRow
+                            key={item[labelsMap[tab].fields[0]]}
+                          >
+                            {labelsMap[tab].fields.map(f => (
+                              <TableCell key={f}>{item[f]}</TableCell>
+                            ))}
                             <TableCell>
                               <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openEdit(tab, item[labelsMap[tab].fields[0]], { nome: item[labelsMap[tab].fields[1]], campo2: labelsMap[tab].fields[2] ? item[labelsMap[tab].fields[2]] : "" })}>Editar</Button>
-                                <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    openEdit(tab,
+                                      item[labelsMap[tab].fields[0]],
+                                      {
+                                        nome:
+                                          item[
+                                            labelsMap[tab].fields[1]
+                                          ],
+                                        campo2:
+                                          labelsMap[tab].fields[2]
+                                            ? item[
+                                                labelsMap[tab].fields[2]
+                                              ]
+                                            : "",
+                                      }
+                                    )
+                                  }
+                                >
+                                  Editar
+                                </Button>
+                                <AlertDialog
+                                  open={alertOpen}
+                                  onOpenChange={setAlertOpen}
+                                >
                                   <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão?</AlertDialogTitle><AlertDialogDescription>Esta ação não poderá ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction></AlertDialogFooter>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Confirmar exclusão?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação não poderá ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Cancelar
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleDelete}>
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
                               </div>
@@ -216,14 +424,32 @@ export default function AuxiliaresPage() {
                           </TableRow>
                         ))}
                       </TableBody>
-                      <TableCaption>Página {page} de {totalPages} — {filtered.length} registro(s)</TableCaption>
+                      <TableCaption>
+                        Página {page} de {totalPages} — {filtered.length} registro(s)
+                      </TableCaption>
                     </Table>
                   </ScrollArea>
 
                   <div className="flex gap-2 items-center mt-4">
-                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button>
-                    <span className="text-sm">Página {page} de {totalPages}</span>
-                    <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Avançar</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 1}
+                      onClick={() => setPage(page - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm">
+                      Página {page} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === totalPages}
+                      onClick={() => setPage(page + 1)}
+                    >
+                      Avançar
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -234,21 +460,63 @@ export default function AuxiliaresPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{dialogMode === "create" ? "Adicionar " : "Editar "}{tabLabels[currentTab]}</DialogTitle><DialogDescription>Preencha os campos abaixo</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogMode === "create" ? "Adicionar " : "Editar "}
+              {tabLabels[currentTab]}
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os campos abaixo
+            </DialogDescription>
+          </DialogHeader>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Nome / descrição */}
               <div className="flex flex-col gap-1">
-                <Label>{currentTab === "Duracoes" ? "Duração *" : currentTab === "Posologias" ? "Descrição *" : currentTab === "Medicamentos" ? "Medicamento *" : "Nome *"}</Label>
-                <Input value={nome} onChange={e => setNome(e.target.value)} required pattern={namePattern} title="3–100 caracteres, pelo menos uma letra" />
+                <Label>
+                  {currentTab === "Duracoes"
+                    ? "Duração *"
+                    : currentTab === "Posologias"
+                    ? "Descrição *"
+                    : "Nome *"}
+                </Label>
+                <Input
+                  value={nome}
+                  onChange={e => onNomeChange(e.target.value)}
+                  className={nomeError ? "border-red-500" : ""}
+                />
+                {nomeError && (
+                  <span className="text-red-600 text-sm">{nomeError}</span>
+                )}
               </div>
-              {["Medicamentos", "Alergias", "Doencas"].includes(currentTab) && (
+
+              {/* CID apenas em Alergias/Doenças */}
+              {requiresCampo2 && (
                 <div className="flex flex-col gap-1">
-                  <Label>{currentTab === "Medicamentos" ? "Posologia *" : "CID *"}</Label>
-                  <Input value={campo2} onChange={e => setCampo2(e.target.value)} required pattern={currentTab === "Medicamentos" ? ".{3,100}" : "[A-TV-Z]\\d{2}(\\.\\d{1,2})?$"} title={currentTab === "Medicamentos" ? "3–100 caracteres" : "Formato: J30 ou E11.9"} />
+                  <Label>CID *</Label>
+                  <Input
+                    value={campo2}
+                    onChange={e => onCampo2Change(e.target.value)}
+                    className={campo2Error ? "border-red-500" : ""}
+                  />
+                  {campo2Error && (
+                    <span className="text-red-600 text-sm">
+                      {campo2Error}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
-            <DialogFooter><Button type="submit">{dialogMode === "create" ? "Adicionar" : "Salvar"}</Button><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose></DialogFooter>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitDisabled}>
+                {dialogMode === "create" ? "Adicionar" : "Salvar"}
+              </Button>
+              <DialogClose asChild>
+                <Button variant="outline">Cancelar</Button>
+              </DialogClose>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

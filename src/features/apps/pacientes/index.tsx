@@ -107,13 +107,113 @@ function isPastOrToday(dateStr: string): boolean {
   return d <= today;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CEP_RE = /^\d{8}$/;
-const UF_SET = new Set([
+
+const NAME_RE   = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?: [A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
+const EMAIL_RE  = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,6})+$/;
+const CEP_RE    = /^\d{8}$/;
+const UF_SET    = new Set([
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
   "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
   "RS","RO","RR","SC","SP","SE","TO"
 ]);
+const DDD_SET   = new Set([
+  "11","12","13","14","15","16","17","18","19",
+  "21","22","24","27","28",
+  "31","32","33","34","35","37","38",
+  "41","42","43","44","45","46","47","48","49",
+  "51","53","54","55",
+  "61","62","64","63","65","66","67","68","69",
+  "71","73","74","75","77","79",
+  "81","82","83","84","85","86","87","88","89",
+  "91","92","93","94","95","96","97","98","99"
+]);
+
+export const validarNome = (v: string): boolean => {
+  const s = v.trim()
+  if (s !== v) return false
+  if (/\s{2,}/.test(s)) return false
+  const parts = s.split(" ")
+  if (parts.length < 2) return false
+  if (s.length < 6 || s.length > 60) return false
+  if (parts.some(p => p.length < 3)) return false
+  const partRe = /^[A-ZÀ-Ö][a-zà-ö]+$/
+  if (!parts.every(p => partRe.test(p))) return false
+  if (/(.)\1\1/.test(s.replace(/ /g, ""))) return false
+  return true
+}
+
+export const validarEmail = (v: string): boolean => {
+  const e = v.trim()
+  if (!e) return false
+  if (e !== e.toLowerCase() || /\s/.test(e)) return false
+  const [local, domain] = e.split("@")
+  if (!local || !domain) return false
+  if (
+    local.length > 64 ||
+    !/^[a-z0-9](?:[a-z0-9._%+-]{0,62}[a-z0-9])?$/.test(local) ||
+    /\.\./.test(local)
+  ) return false
+  const labels = domain.split(".")
+  if (
+    labels.length < 2 ||
+    labels.some(l => l.length < 2 || l.length > 63 ||
+      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(l)
+    )
+  ) return false
+  return true
+}
+
+export const getTelefoneError = (v: string): string => {
+  const n = v.replace(/\D/g, "")
+  if (!n) return "Telefone é obrigatório."
+  if (n.length !== 10 && n.length !== 11)
+    return "Use 10 dígitos (fixo) ou 11 (móvel)."
+  const ddd = n.slice(0,2)
+  if (!DDD_SET.has(ddd)) return `DDD "${ddd}" inválido.`
+  const body = n.slice(2)
+  if (/^(\d)\1+$/.test(body)) return "Não use todos os dígitos iguais."
+  if (n.length===11 && n[2] !== "9") return 'Celular deve iniciar com "9".'
+  if (n.length===10 && !/[2-5]/.test(n[2])) return "Fixo deve iniciar com 2–5."
+  return ""
+}
+
+export const getNomeError = (raw: string): string => {
+  const v = raw.trim()
+  if (!v) return "Nome é obrigatório."
+  if (raw !== v) return "Remova espaços no início/fim."
+  if (/\s{2,}/.test(v)) return "Não use mais de um espaço consecutivo."
+  const parts = v.split(" ")
+  if (parts.length < 2) return "Informe nome e sobrenome."
+  if (v.length < 6) return "Nome muito curto (mínimo 6 caracteres)."
+  if (v.length > 60) return "Nome muito longo (máximo 60 caracteres)."
+  if (parts.some(p => p.length < 3)) return "Cada parte deve ter ao menos 3 letras."
+  const partRe = /^[A-ZÀ-Ö][a-zà-ö]+$/
+  if (!parts.every(p => partRe.test(p)))
+    return "Cada parte deve iniciar com maiúscula e conter apenas letras."
+  if (/(.)\1\1/.test(v.replace(/ /g, "")))
+    return "Não use três letras iguais seguidas."
+  return ""
+}
+
+export const getEmailError = (raw: string): string => {
+  const e = raw.trim()
+  if (!e) return "E-mail é obrigatório."
+  if (e !== e.toLowerCase()) return "Use apenas letras minúsculas."
+  if (/\s/.test(raw)) return "Não inclua espaços."
+  const parts = e.split("@")
+  if (parts.length !== 2) return "Formato deve ser usuario@dominio."
+  const [local, domain] = parts
+  if (local.length > 64) return "Parte local muito longa (máx 64 chars)."
+  if (!/^[a-z0-9](?:[a-z0-9._%+-]{0,62}[a-z0-9])?$/.test(local))
+    return "Caracteres inválidos na parte local."
+  if (/\.\./.test(local)) return "Não use dois pontos consecutivos."
+  const labels = domain.split(".")
+  if (
+    labels.length < 2 ||
+    labels.some(l => l.length < 2 || l.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(l))
+  ) return "Formato de domínio inválido."
+  return ""
+}
 
 const PacientesPage: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -223,47 +323,92 @@ const PacientesPage: React.FC = () => {
     }
   }, [cep]);
 
-  // validation
-  const validateField = (field: string, value: string) => {
-    let msg = "";
-    switch (field) {
-      case "cpf":
-        if (!value) msg = "CPF obrigatório";
-        else if (!validarCPF(value)) msg = "CPF inválido";
-        break;
-      case "name":
-        if (!value.trim()) msg = "Nome obrigatório";
-        else if (/\d/.test(value)) msg = "Sem números";
-        else if (value.trim().length < 3) msg = "Muito curto";
-        break;
-      case "birthDate":
-        if (!value) msg = "Data obrigatória";
-        else if (!isPastOrToday(value)) msg = "Data futura";
-        break;
-      case "email":
-        if (value && !EMAIL_RE.test(value)) msg = "E-mail inválido";
-        break;
-      case "phone":
-        if (!value) msg = "Telefone obrigatório";
-        else if (value.replace(/\D/g, "").length < 10) msg = "Incompleto";
-        break;
-      case "cep":
-        if (!value) msg = "CEP obrigatório";
-        else if (!CEP_RE.test(value.replace(/\D/g, ""))) msg = "CEP inválido";
-        break;
-      case "number":
-        if (!value) msg = "Número obrigatório";
-        else if (!/^\d+$/.test(value)) msg = "Só dígitos";
-        break;
-      case "state":
-        if (value && !UF_SET.has(value.toUpperCase())) msg = "UF inválida";
-        break;
-      case "gender":
-        if (!value) msg = "Gênero obrigatório";
-        break;
-    }
-    setErrors(prev => ({ ...prev, [field]: msg }));
-  };
+  function calculateAge(dateStr: string): number {
+  const birth = new Date(dateStr);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+const validateField = (field: string, value: string) => {
+  let msg = ""
+  const raw = value.replace(/\D/g, "")
+  const v = value.trim()
+
+  switch (field) {
+    case "cpf":
+      if (!raw) msg = "CPF é obrigatório."
+      else if (!validarCPF(raw)) msg = "CPF inválido."
+      break
+
+    case "name":
+      msg = getNomeError(value)
+      break
+
+    case "email":
+      msg = getEmailError(value)
+      break
+
+    case "phone":
+      msg = getTelefoneError(value)
+      break
+
+    case "birthDate":
+      if (!v) msg = "Data de nascimento é obrigatória."
+      else if (!isPastOrToday(v)) msg = "Data não pode ser futura."
+      else {
+        const age = calculateAge(v)
+        if (age < 0) msg = "Data inválida."
+        else if (age < 18) msg = "Idade mínima de 18 anos."
+        else if (age > 120) msg = "Idade não pode exceder 120 anos."
+      }
+      break
+
+    case "cep":
+      if (!raw) msg = "CEP é obrigatório."
+      else if (!/^\d{8}$/.test(raw)) msg = "CEP deve ter 8 dígitos."
+      break
+
+    case "address":
+      if (!v) msg = "Endereço é obrigatório."
+      else if (v.length < 3) msg = "Endereço muito curto."
+      else if (!/^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s\.]+$/.test(v))
+        msg = "Somente letras, números, espaços e pontos."
+      else if (!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(v))
+        msg = "Endereço deve conter ao menos uma letra."
+      else if (
+        !/^(Rua|R\.|Avenida|Av\.|Travessa|Tv\.|Praça|Alameda|Rodovia|Estrada|Via)\b/i.test(
+          v
+        )
+      )
+        msg = "Deve começar com logradouro válido (Rua, Av, etc.)."
+      break
+
+    case "number":
+      if (!v) msg = "Número é obrigatório."
+      else if (!/^\d+$/.test(v)) msg = "Número só pode conter dígitos."
+      break
+
+    case "city":
+      if (v && !/^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,}$/.test(v))
+        msg = "Cidade só letras e ≥2 caracteres."
+      break
+
+    case "state":
+      if (v && !UF_SET.has(v.toUpperCase())) msg = "UF inválida."
+      break
+
+    case "gender":
+      if (!v) msg = "Gênero é obrigatório."
+      break
+  }
+
+  setErrors(prev => ({ ...prev, [field]: msg }))
+}
 
   const handleChange = (
     field: string,
@@ -278,8 +423,8 @@ const PacientesPage: React.FC = () => {
   // submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    ["cpf","name","birthDate","email","phone","cep","number","state","gender"].forEach(f =>
-      validateField(f, ({ cpf,name,email,phone,cep,number,state,birthDate,gender } as any)[f])
+    ["cpf","name","birthDate","email","phone","cep","number","state","gender","address"].forEach(f =>
+      validateField(f, ({ cpf,name,email,phone,cep,number,state,birthDate,gender, address} as any)[f])
     );
     if (Object.values(errors).some(x => x)) return;
     const payload = {
@@ -313,7 +458,7 @@ const PacientesPage: React.FC = () => {
   };
 
   const isFormValid =
-    cpf && name && birthDate && gender && cep && number &&
+    cpf && name && birthDate && gender && cep && number && address
     !Object.values(errors).some(x => x);
 
   return (
@@ -548,9 +693,15 @@ const PacientesPage: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-1">
-                <Label>Endereço</Label>
-                <Input value={address} onChange={e => setAddress(e.target.value)} />
-              </div>
+  <Label>Endereço *</Label>
+  <Input
+    value={address}
+    onChange={handleChange("address", setAddress)}
+  />
+  {errors.address && (
+    <p className="text-red-600 text-sm">{errors.address}</p>
+  )}
+</div>
 
               <div className="flex flex-col gap-1">
                 <Label>Número *</Label>
